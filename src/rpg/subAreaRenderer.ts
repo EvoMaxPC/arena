@@ -70,6 +70,190 @@ export interface SubAreaRenderParams {
   bossCombatState?: CastleBossCombatState;
 }
 
+/**
+ * Muro de casa-biblioteca: papel damasco burdeos, zócalo de nogal tallado con
+ * filete dorado, ventanas arqueadas con cortinas de terciopelo, apliques de
+ * pared con luz cálida, cornisa y marco de madera en los laterales.
+ */
+function drawLibraryHouseWall(
+  ctx: CanvasRenderingContext2D,
+  area: { width: number; height: number },
+  wb: { x: number; y: number; w: number; h: number },
+  elapsed: number,
+  reducedMotion: boolean
+): void {
+  const wallH = wb.y;
+  const flicker = reducedMotion ? 1 : 0.9 + Math.sin(elapsed * 7) * 0.05 + Math.sin(elapsed * 13) * 0.03;
+
+  // Papel pintado damasco: franjas verticales con motivos de flor de lis.
+  ctx.fillStyle = '#4e2326';
+  ctx.fillRect(0, 0, area.width, wallH);
+  for (let wx = 0; wx < area.width; wx += 32) {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.16)';
+    ctx.fillRect(wx, 0, 16, wallH);
+    ctx.fillStyle = 'rgba(255, 214, 160, 0.05)';
+    ctx.fillRect(wx + 16, 0, 1, wallH);
+  }
+  for (let wy = 12; wy < wallH - 36; wy += 22) {
+    for (let wx = 8; wx < area.width; wx += 32) {
+      const dx = wx + (Math.floor(wy / 22) % 2) * 16;
+      ctx.fillStyle = 'rgba(214, 160, 96, 0.28)';
+      ctx.fillRect(dx, wy, 2, 6);
+      ctx.fillRect(dx - 2, wy + 2, 6, 2);
+      ctx.fillRect(dx - 1, wy + 6, 4, 2);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+      ctx.fillRect(dx + 1, wy + 1, 1, 6);
+    }
+  }
+
+  // Cornisa superior con dentellones.
+  ctx.fillStyle = '#1a0d08';
+  ctx.fillRect(0, 0, area.width, 10);
+  ctx.fillStyle = '#6a3e22';
+  ctx.fillRect(0, 0, area.width, 7);
+  ctx.fillStyle = '#b07a42';
+  ctx.fillRect(0, 0, area.width, 2);
+  ctx.fillStyle = '#3a2012';
+  for (let cx = 2; cx < area.width; cx += 8) ctx.fillRect(cx, 7, 4, 3);
+  ctx.fillStyle = '#e0b860';
+  ctx.fillRect(0, 10, area.width, 1);
+
+  // Zócalo de nogal con paneles biselados y filete dorado.
+  const baseH = 30;
+  const baseTop = wallH - baseH;
+  ctx.fillStyle = '#140a05';
+  ctx.fillRect(0, baseTop, area.width, baseH);
+  ctx.fillStyle = '#3a2112';
+  ctx.fillRect(0, baseTop + 3, area.width, baseH - 3);
+  for (let px = 10; px < area.width - 20; px += 40) {
+    ctx.fillStyle = '#1e0f07';
+    ctx.fillRect(px, baseTop + 7, 32, baseH - 12);
+    ctx.fillStyle = '#5a3620';
+    ctx.fillRect(px + 1, baseTop + 8, 30, baseH - 14);
+    ctx.fillStyle = '#442714';
+    ctx.fillRect(px + 3, baseTop + 10, 26, baseH - 18);
+    ctx.fillStyle = 'rgba(255, 220, 160, 0.14)';
+    ctx.fillRect(px + 1, baseTop + 8, 30, 1);
+  }
+  ctx.fillStyle = '#c99a4a';
+  ctx.fillRect(0, baseTop, area.width, 2);
+  ctx.fillStyle = '#f0d078';
+  ctx.fillRect(0, baseTop, area.width, 1);
+  ctx.fillStyle = '#8a5a2c';
+  ctx.fillRect(0, wallH - 4, area.width, 4);
+  ctx.fillStyle = '#0c0603';
+  ctx.fillRect(0, wallH - 1, area.width, 1);
+
+  // Ventanas arqueadas con cortinas de terciopelo granate.
+  const windows = [area.width * 0.3, area.width * 0.7];
+  windows.forEach((wc) => {
+    if (wc < 70 || wc > area.width - 70) return;
+    const wx = Math.round(wc - 24);
+    const wy = 20;
+    const ww = 48;
+    const wh = baseTop - wy - 6;
+    ctx.fillStyle = '#120804';
+    ctx.fillRect(wx - 4, wy - 3, ww + 8, wh + 7);
+    ctx.fillStyle = '#7a4a28';
+    ctx.fillRect(wx - 3, wy - 2, ww + 6, wh + 5);
+    const sky = ctx.createLinearGradient(0, wy, 0, wy + wh);
+    sky.addColorStop(0, '#2a3f70');
+    sky.addColorStop(0.6, '#e0a45c');
+    sky.addColorStop(1, '#f6d58a');
+    ctx.fillStyle = sky;
+    ctx.beginPath();
+    ctx.moveTo(wx, wy + wh);
+    ctx.lineTo(wx, wy + 16);
+    ctx.quadraticCurveTo(wx + ww / 2, wy - 10, wx + ww, wy + 16);
+    ctx.lineTo(wx + ww, wy + wh);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#4a2a14';
+    ctx.fillRect(wx + ww / 2 - 1, wy + 2, 2, wh - 2);
+    ctx.fillRect(wx, wy + Math.floor(wh * 0.5), ww, 2);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+    ctx.fillRect(wx + 4, wy + 14, 5, wh - 18);
+    ctx.fillStyle = '#1a0d08';
+    ctx.fillRect(wx - 6, wy + wh, ww + 12, 5);
+    ctx.fillStyle = '#a06a38';
+    ctx.fillRect(wx - 5, wy + wh, ww + 10, 2);
+    for (const side of [-1, 1]) {
+      const cx0 = side < 0 ? wx - 12 : wx + ww - 2;
+      ctx.fillStyle = '#5a0f1c';
+      ctx.fillRect(cx0, wy - 4, 14, wh + 4);
+      ctx.fillStyle = '#8a1c2e';
+      for (let fx = 0; fx < 14; fx += 4) ctx.fillRect(cx0 + fx, wy - 2, 2, wh);
+      ctx.fillStyle = '#2e0610';
+      for (let fx = 2; fx < 14; fx += 4) ctx.fillRect(cx0 + fx, wy - 2, 1, wh);
+      ctx.fillStyle = '#e0b860';
+      ctx.fillRect(cx0, wy + Math.floor(wh * 0.55), 14, 3);
+    }
+    ctx.fillStyle = '#c99a4a';
+    ctx.fillRect(wx - 16, wy - 8, ww + 32, 4);
+    ctx.fillStyle = '#f0d078';
+    ctx.fillRect(wx - 16, wy - 8, ww + 32, 1);
+    ctx.fillStyle = '#7a1424';
+    ctx.fillRect(wx - 12, wy - 4, ww + 24, 5);
+  });
+
+  // Apliques de pared con pantalla de cristal y halo cálido.
+  const sconceXs = [area.width * 0.5, area.width * 0.12, area.width * 0.88];
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  sconceXs.forEach((sx) => {
+    const g = ctx.createRadialGradient(sx, 54, 2, sx, 54, 52);
+    g.addColorStop(0, `rgba(255, 196, 110, ${(0.3 * flicker).toFixed(2)})`);
+    g.addColorStop(1, 'rgba(255, 170, 80, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(sx - 52, 4, 104, 104);
+  });
+  ctx.restore();
+  sconceXs.forEach((sx) => {
+    const x = Math.round(sx);
+    ctx.fillStyle = '#c99a4a';
+    ctx.fillRect(x - 3, 58, 6, 4);
+    ctx.fillRect(x - 1, 50, 2, 8);
+    ctx.fillStyle = `rgba(255, 226, 150, ${flicker.toFixed(2)})`;
+    ctx.fillRect(x - 4, 40, 8, 10);
+    ctx.fillStyle = '#fff6d0';
+    ctx.fillRect(x - 1, 42, 2, 6);
+    ctx.fillStyle = '#8a5a2c';
+    ctx.fillRect(x - 5, 38, 10, 3);
+  });
+
+  // Laterales del recinto: marco de madera oscura con vetas.
+  const sideRects = [
+    { x: 0, y: wallH, w: wb.x, h: area.height - wallH },
+    { x: wb.x + wb.w, y: wallH, w: area.width - (wb.x + wb.w), h: area.height - wallH },
+    { x: wb.x, y: wb.y + wb.h, w: wb.w, h: area.height - (wb.y + wb.h) },
+  ];
+  for (const r of sideRects) {
+    if (r.w <= 0 || r.h <= 0) continue;
+    ctx.fillStyle = '#26150b';
+    ctx.fillRect(r.x, r.y, r.w, r.h);
+    ctx.fillStyle = '#3c2212';
+    for (let ly = r.y + 3; ly < r.y + r.h; ly += 9) ctx.fillRect(r.x, ly, r.w, 3);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+    for (let lx = r.x + 7; lx < r.x + r.w; lx += 23) ctx.fillRect(lx, r.y, 1, r.h);
+  }
+
+  // Motas de polvo dorado flotando en la luz de las ventanas.
+  if (!reducedMotion) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    windows.forEach((wc, wi) => {
+      for (let p = 0; p < 7; p++) {
+        const px = wc + Math.sin(elapsed * 1.2 + p * 1.9 + wi) * 26 + (p * 7 - 20);
+        const py = wb.y + ((elapsed * 10 + p * 41) % (wb.h * 0.7));
+        ctx.fillStyle = 'rgba(255, 224, 150, 0.35)';
+        ctx.fillRect(px, py, 2, 2);
+      }
+    });
+    ctx.restore();
+  }
+}
+
+
 function drawSubAreaWallsAndFloor(
   ctx: CanvasRenderingContext2D,
   area: {
@@ -99,12 +283,104 @@ function drawSubAreaWallsAndFloor(
   const isHouseInterior =
     area.id.startsWith('interior-') ||
     area.id.startsWith('secret-');
+  const isLibraryHouse =
+    area.id === 'interior-centro-historia' ||
+    area.id === 'interior-archivo-norte';
+  const isStoneHall =
+    area.id === 'interior-museo-viviente' ||
+    area.id === 'interior-templo-pioneros' ||
+    area.id === 'interior-cronoscopio';
 
   // 1. Muros perimetrales y fondo
   ctx.fillStyle = area.wallHex;
   ctx.fillRect(0, 0, area.width, area.height);
 
-  if (isHouseInterior) {
+  if (isLibraryHouse) {
+    drawLibraryHouseWall(ctx, area, wb, elapsed, reducedMotion);
+  } else if (isStoneHall) {
+    const wallH = wb.y;
+    const flicker = reducedMotion ? 1 : 0.9 + Math.sin(elapsed * 6) * 0.05;
+    ctx.fillStyle = '#4e4a44';
+    ctx.fillRect(0, 0, area.width, wallH);
+    for (let row = 0, ry = 12; ry < wallH - 8; row++, ry += 10) {
+      const odd = row % 2;
+      for (let sx = odd ? -8 : 0; sx < area.width; sx += 18) {
+        const n = (sx * 17 + ry * 11) % 100;
+        ctx.fillStyle = n > 70 ? '#8d867a' : n > 40 ? '#746d62' : '#635c52';
+        ctx.fillRect(sx + 1, ry, 16, 8);
+        ctx.fillStyle = 'rgba(230, 220, 200, 0.14)';
+        ctx.fillRect(sx + 1, ry, 14, 1);
+        ctx.fillStyle = 'rgba(20, 16, 12, 0.28)';
+        ctx.fillRect(sx + 1, ry + 7, 16, 1);
+      }
+    }
+    ctx.fillStyle = '#2a2218';
+    ctx.fillRect(0, 0, area.width, 10);
+    ctx.fillStyle = '#c4b08a';
+    ctx.fillRect(0, 10, area.width, 3);
+    ctx.fillStyle = '#3a3228';
+    ctx.fillRect(0, wallH - 22, area.width, 22);
+    ctx.fillStyle = '#c4b08a';
+    ctx.fillRect(0, wallH - 22, area.width, 2);
+    for (let px = 12; px < area.width; px += 28) {
+      ctx.fillStyle = '#2a2218';
+      ctx.fillRect(px, wallH - 18, 22, 14);
+      ctx.fillStyle = '#5a5044';
+      ctx.fillRect(px + 1, wallH - 17, 20, 12);
+    }
+    const cols = [90, area.width - 90];
+    cols.forEach((cx) => {
+      ctx.fillStyle = '#9aa3ae';
+      ctx.fillRect(cx - 10, 18, 20, wallH - 18);
+      ctx.fillStyle = '#d5dce4';
+      ctx.fillRect(cx - 10, 18, 4, wallH - 18);
+      ctx.fillStyle = '#c4b08a';
+      ctx.fillRect(cx - 14, 16, 28, 6);
+      ctx.fillRect(cx - 14, wallH - 10, 28, 8);
+    });
+    const winCenters = [area.width * 0.32, area.width * 0.68];
+    winCenters.forEach((wc) => {
+      const wx = Math.round(wc - 18);
+      ctx.fillStyle = '#1a140c';
+      ctx.fillRect(wx, 22, 36, 40);
+      ctx.fillStyle = '#c4b08a';
+      ctx.fillRect(wx + 2, 24, 32, 36);
+      const sky = ctx.createLinearGradient(0, 24, 0, 60);
+      sky.addColorStop(0, '#243656');
+      sky.addColorStop(1, '#e8b86a');
+      ctx.fillStyle = sky;
+      ctx.fillRect(wx + 5, 28, 26, 28);
+      ctx.fillStyle = '#3a2a18';
+      ctx.fillRect(wx + 16, 28, 2, 28);
+      ctx.fillRect(wx + 5, 42, 26, 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.22)';
+      ctx.fillRect(wx + 7, 30, 6, 8);
+    });
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    [area.width * 0.2, area.width * 0.5, area.width * 0.8].forEach((sx) => {
+      const g = ctx.createRadialGradient(sx, 48, 2, sx, 48, 46);
+      g.addColorStop(0, `rgba(255, 190, 100, ${(0.28 * flicker).toFixed(2)})`);
+      g.addColorStop(1, 'rgba(255, 190, 100, 0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(sx - 46, 4, 92, 90);
+    });
+    ctx.restore();
+    const sideRects = [
+      { x: 0, y: wallH, w: wb.x, h: area.height - wallH },
+      { x: wb.x + wb.w, y: wallH, w: area.width - (wb.x + wb.w), h: area.height - wallH },
+      { x: wb.x, y: wb.y + wb.h, w: wb.w, h: area.height - (wb.y + wb.h) },
+    ];
+    for (const r of sideRects) {
+      if (r.w <= 0 || r.h <= 0) continue;
+      ctx.fillStyle = '#2c2822';
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      for (let ly = r.y; ly < r.y + r.h; ly += 10) {
+        ctx.fillStyle = 'rgba(0,0,0,0.18)';
+        ctx.fillRect(r.x, ly, r.w, 1);
+      }
+    }
+  } else if (isHouseInterior) {
     const wallH = wb.y;
 
     // Fondo de pared: Tono cálido base de yeso/madera estilo GBA 16-bits
@@ -311,7 +587,19 @@ function drawSubAreaWallsAndFloor(
     ctx.stroke();
 
     if (isTileFloor) {
-      // Cruces y biseles en las esquinas de los azulejos de mármol/piedra
+      for (let gy = wb.y; gy < wb.y + wb.h; gy += 32) {
+        for (let gx = wb.x; gx < wb.x + wb.w; gx += 32) {
+          const checker = (Math.floor((gx - wb.x) / 32) + Math.floor((gy - wb.y) / 32)) % 2;
+          ctx.fillStyle = checker === 0 ? 'rgba(214, 204, 178, 0.16)' : 'rgba(40, 36, 32, 0.22)';
+          ctx.fillRect(gx + 1, gy + 1, 30, 30);
+          ctx.fillStyle = 'rgba(255, 246, 220, 0.12)';
+          ctx.fillRect(gx + 1, gy + 1, 28, 1);
+          ctx.fillRect(gx + 1, gy + 1, 1, 28);
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+          ctx.fillRect(gx + 1, gy + 30, 30, 1);
+          ctx.fillRect(gx + 30, gy + 1, 1, 30);
+        }
+      }
       ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
       for (let gx = wb.x; gx <= wb.x + wb.w; gx += 32) {
         for (let gy = wb.y; gy <= wb.y + wb.h; gy += 32) {
@@ -2821,10 +3109,14 @@ export function renderSubAreaFrame(params: SubAreaRenderParams): void {
       // Sombra y zócalo de museo
       ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
       ctx.fillRect(prop.x - 4, prop.y + prop.h - 2, prop.w + 8, 8);
-      ctx.fillStyle = '#070b14';
+      ctx.fillStyle = '#1a140c';
       ctx.fillRect(prop.x - 2, prop.y - 2, prop.w + 4, prop.h + 4);
-      ctx.fillStyle = isEncryptedBreakout ? '#1e1b2e' : '#1e293b';
+      ctx.fillStyle = isEncryptedBreakout ? '#1e1b2e' : '#6a6358';
       ctx.fillRect(prop.x, prop.y, prop.w, prop.h);
+      ctx.fillStyle = '#c4b08a';
+      ctx.fillRect(prop.x + 2, prop.y + 2, prop.w - 4, 3);
+      ctx.fillStyle = isEncryptedBreakout ? '#1e1b2e' : '#4a453c';
+      ctx.fillRect(prop.x + 4, prop.y + 8, prop.w - 8, prop.h - 12);
       ctx.strokeStyle = isEncryptedBreakout
         ? '#64748b'
         : isPending

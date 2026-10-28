@@ -8,8 +8,10 @@ import {
   Award,
   Check,
   ChevronRight,
+  Gamepad2,
   KeyRound,
   Layers,
+  Palette,
   Save,
   Settings,
   Sparkles,
@@ -485,11 +487,11 @@ export default function App() {
   );
   const [activeState, setActiveState] = useState<ViewStateId>('state-cinematic');
   const [cinematicRunKey, setCinematicRunKey] = useState<number>(1);
-  // El prólogo se divide en dos actos: la catástrofe (antes del avatar) y el
-  // encuentro con la pelota que quedó (después de crear la identidad).
+  // La cinemática tiene dos actos: el prólogo cósmico (antes del avatar) y el
+  // descenso a la cabaña (después de crear la identidad).
   const [cinematicSegment, setCinematicSegment] = useState<{ start: number; end: number }>({
     start: 0,
-    end: 180,
+    end: 94,
   });
   const pendingEncounterIntroRef = useRef(false);
   // Estado persistente de aventura e historial
@@ -796,7 +798,7 @@ export default function App() {
   }, []);
 
   const handleCinematicComplete = useCallback(() => {
-    // El segundo acto del prólogo es la antesala directa de Isla Natal.
+    // El segundo acto desembarca directamente en la cabaña de Isla Natal.
     if (cinematicSegment.start > 0) {
       setIslandArrivalMode('awakening');
       managerRef.current?.transitionTo('state-isla-natal');
@@ -808,7 +810,7 @@ export default function App() {
   const handleReplayCinematic = useCallback(() => {
     retroAudio.uiClick();
     pendingEncounterIntroRef.current = false;
-    setCinematicSegment({ start: 0, end: 210 });
+    setCinematicSegment({ start: 0, end: 128 });
     setCinematicRunKey((k) => k + 1);
     managerRef.current?.transitionTo('state-cinematic');
   }, []);
@@ -823,7 +825,8 @@ export default function App() {
     retroAudio.uiClick();
     if (pendingEncounterIntroRef.current) {
       pendingEncounterIntroRef.current = false;
-      setCinematicSegment({ start: 180, end: 210 });
+      // Acto II: descenso a la isla y entrada a la cabaña.
+      setCinematicSegment({ start: 94, end: 128 });
       setCinematicRunKey((k) => k + 1);
       managerRef.current?.transitionTo('state-cinematic');
       return;
@@ -911,7 +914,7 @@ export default function App() {
 
     if (targetState === 'state-cinematic') {
       pendingEncounterIntroRef.current = false;
-      setCinematicSegment({ start: 0, end: 210 });
+      setCinematicSegment({ start: 0, end: 128 });
       setCinematicRunKey((k) => k + 1);
     } else if (targetState === 'state-pong') {
       setPongSkipIntro(true);
@@ -998,7 +1001,7 @@ export default function App() {
       saveFeedbackTimerRef.current = null;
     }
     setIslandArrivalMode('awakening');
-    // Partida nueva: al confirmar el avatar se reproduce el acto del encuentro.
+    // Partida nueva: al confirmar el avatar se reproduce el acto de la isla.
     pendingEncounterIntroRef.current = true;
     managerRef.current?.transitionTo('state-avatar');
   }, []);
@@ -1202,22 +1205,43 @@ export default function App() {
           aria-modal="true"
           aria-labelledby="settings-modal-title"
           onClick={() => setSettingsOpen(false)}
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          className="settings-overlay fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="gbc-hud-frame w-full max-w-lg max-h-[90vh] overflow-y-auto p-5 sm:p-6 space-y-5 text-slate-100 bg-[#06111e]/95 border-2 border-[#fde047]/50"
+            className="settings-modal"
           >
-            {/* Cabecera */}
-            <div className="flex items-center justify-between gap-4 border-b border-white/15 pb-3">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <Settings className="w-5 h-5 text-[#fde047] shrink-0" />
-                <h2
-                  id="settings-modal-title"
-                  className="text-base sm:text-lg font-bold text-white tracking-wide whitespace-nowrap"
-                >
+            <div className="settings-modal__grid" aria-hidden="true" />
+            <div className="settings-motes" aria-hidden="true">
+              {[0, 1, 2, 3, 4, 5].map((mote) => (
+                <span
+                  key={mote}
+                  style={{
+                    left: `${12 + mote * 15}%`,
+                    bottom: `${8 + (mote % 3) * 22}%`,
+                    animationDelay: `${-mote * 1.7}s`,
+                    animationDuration: `${9 + (mote % 4) * 2}s`,
+                  }}
+                />
+              ))}
+            </div>
+            <span className="settings-corner settings-corner--tl" aria-hidden="true" />
+            <span className="settings-corner settings-corner--tr" aria-hidden="true" />
+            <span className="settings-corner settings-corner--bl" aria-hidden="true" />
+            <span className="settings-corner settings-corner--br" aria-hidden="true" />
+
+            <header className="settings-header">
+              <div className="settings-header__badge">
+                <Settings className="settings-header__gear" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="settings-eyebrow">PIXELVERSE · SISTEMA</p>
+                <h2 id="settings-modal-title" className="settings-title">
                   Configuración del Juego
                 </h2>
+                <p className="settings-subtitle">
+                  Controles, audio y progreso de tu aventura
+                </p>
               </div>
               <button
                 type="button"
@@ -1226,109 +1250,174 @@ export default function App() {
                   setSettingsOpen(false);
                 }}
                 aria-label="Cerrar configuración"
-                className="inline-flex items-center justify-center min-h-[36px] min-w-[36px] px-2 text-xs font-mono-tabular text-slate-300 hover:text-[#fde047] cursor-pointer whitespace-nowrap shrink-0"
+                className="settings-close"
               >
                 <X className="w-5 h-5" />
               </button>
-            </div>
+            </header>
 
-            {/* Reasignación de Controles y Teclas */}
-            <div className="border-b border-white/15 pb-4">
-              <KeybindingsSettingsPanel />
-            </div>
+            <div className="settings-body">
 
-            {/* Control 1: Sonido general (Quitar / Activar sonido) */}
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between gap-3 text-xs">
-                <span className="font-semibold text-slate-200">Sonido del juego</span>
-                <span className="font-mono-tabular text-slate-400">
-                  {isAudioMuted ? 'Silenciado · Tecla M' : 'Activado · Tecla M'}
+            {/* Controles y teclas */}
+            <section className="settings-card settings-card--controls">
+              <div className="settings-card__head">
+                <span className="settings-chip-icon settings-chip-icon--controls">
+                  <Gamepad2 />
                 </span>
+                <div className="min-w-0">
+                  <h3 className="settings-card__title">Controles</h3>
+                  <p className="settings-card__sub">Teclas y reasignación</p>
+                </div>
+                <span className="settings-card__badge">INPUT</span>
               </div>
+              <div className="settings-controls">
+                <KeybindingsSettingsPanel embedded />
+              </div>
+            </section>
 
-              <button
-                id="btn-toggle-sound"
-                type="button"
-                onClick={handleToggleGlobalSound}
-                className={`w-full min-h-[42px] px-4 py-2 border text-xs font-mono-tabular font-bold flex items-center justify-between gap-3 cursor-pointer transition-colors whitespace-nowrap ${
-                  isAudioMuted
-                    ? 'bg-emerald-950/70 border-emerald-400/80 text-emerald-200 hover:bg-emerald-900/80'
-                    : 'gbc-menu-btn'
-                }`}
-              >
-                <span className="inline-flex items-center gap-2.5">
-                  {isAudioMuted ? (
-                    <Volume2 className="w-4 h-4 text-emerald-300 shrink-0" />
-                  ) : (
-                    <VolumeX className="w-4 h-4 text-rose-300 shrink-0" />
-                  )}
-                  <span>{isAudioMuted ? 'Activar sonido' : 'Quitar sonido'}</span>
-                </span>
-                <span className="text-[11px] font-normal text-slate-300">
-                  {isAudioMuted ? 'Audio OFF' : 'Audio ON'}
-                </span>
-              </button>
-            </div>
-
-            {/* Control 2: Guardar partida */}
-            <div className="space-y-2.5 border-t border-white/15 pt-4">
-              <div className="space-y-1">
-                <div className="flex items-center justify-between gap-3 text-xs">
-                  <span className="font-semibold text-slate-200">Partida y progreso</span>
-                  <span className="font-mono-tabular text-slate-400">
-                    {formattedLastSaveLabel
-                      ? `Último: ${formattedLastSaveLabel}`
-                      : 'Autoguardado activo'}
+            <div className="settings-grid">
+              {/* Audio */}
+              <section className="settings-card">
+                <div className="settings-card__head">
+                  <span className="settings-chip-icon settings-chip-icon--audio">
+                    {isAudioMuted ? <VolumeX /> : <Volume2 />}
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="settings-card__title">Audio</h3>
+                    <p className="settings-card__sub">Sonido del juego</p>
+                  </div>
+                  <span className={`settings-pill ${isAudioMuted ? 'is-off' : 'is-on'}`}>
+                    <span className="settings-pill__dot" aria-hidden="true" />
+                    {isAudioMuted ? 'OFF' : 'ON'}
                   </span>
                 </div>
-                <p className="text-[11px] font-mono-tabular text-slate-400">
-                  Diamantes {progressState.island70s.collectedDiamondIds.length}/9 · Memorias{' '}
-                  {restoredMemoriesSummaryCount}/5 · Cofres {progressState.rpg.openedChestIds.length}
-                </p>
-              </div>
-
-              <button
-                id="btn-save-game"
-                type="button"
-                onClick={handleManualSaveFromSettings}
-                className="w-full min-h-[42px] px-4 py-2 border-2 border-[#fde047] bg-[#0c2d48] hover:bg-[#144266] text-xs font-mono-tabular font-bold text-white flex items-center justify-center gap-2.5 cursor-pointer transition-colors whitespace-nowrap"
-              >
-                <Save className="w-4 h-4 text-[#fde047] shrink-0" />
-                <span>Guardar partida</span>
-              </button>
-
-              {saveFeedback && (
-                <div
-                  role="status"
-                  className="flex items-center gap-2 pt-1 text-xs font-mono-tabular text-emerald-300"
+                <button
+                  id="btn-toggle-sound"
+                  type="button"
+                  onClick={handleToggleGlobalSound}
+                  className={`settings-toggle ${isAudioMuted ? 'is-muted' : 'is-live'}`}
                 >
-                  <Check className="w-4 h-4 shrink-0 text-emerald-400" />
-                  <span className="truncate">
-                    Partida guardada ({saveFeedback.timeLabel}) · {saveFeedback.locationLabel}
+                  <span className="settings-toggle__icon">
+                    {isAudioMuted ? <Volume2 /> : <VolumeX />}
+                  </span>
+                  <span className="settings-toggle__copy">
+                    <span className="settings-toggle__label">
+                      {isAudioMuted ? 'Activar sonido' : 'Silenciar audio'}
+                    </span>
+                    <span className="settings-toggle__hint">
+                      {isAudioMuted ? 'Audio desactivado' : 'Música y efectos activos'} · Tecla M
+                    </span>
+                  </span>
+                  <span className="settings-toggle__switch" aria-hidden="true">
+                    <span />
+                  </span>
+                </button>
+              </section>
+
+              {/* Partida */}
+              <section className="settings-card">
+                <div className="settings-card__head">
+                  <span className="settings-chip-icon settings-chip-icon--save">
+                    <Save />
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="settings-card__title">Partida</h3>
+                    <p className="settings-card__sub">Progreso y guardado</p>
+                  </div>
+                  <span className="settings-pill is-neutral">
+                    <span className="settings-pill__dot" aria-hidden="true" />
+                    {formattedLastSaveLabel ? 'MANUAL' : 'AUTO'}
                   </span>
                 </div>
-              )}
+                <div className="settings-stats">
+                  <div className="settings-stat">
+                    <span className="settings-stat__value">
+                      {progressState.island70s.collectedDiamondIds.length}
+                      <span className="settings-stat__cap">/9</span>
+                    </span>
+                    <span className="settings-stat__label">Diamantes</span>
+                  </div>
+                  <div className="settings-stat">
+                    <span className="settings-stat__value">
+                      {restoredMemoriesSummaryCount}
+                      <span className="settings-stat__cap">/5</span>
+                    </span>
+                    <span className="settings-stat__label">Memorias</span>
+                  </div>
+                  <div className="settings-stat">
+                    <span className="settings-stat__value">
+                      {progressState.rpg.openedChestIds.length}
+                    </span>
+                    <span className="settings-stat__label">Cofres</span>
+                  </div>
+                </div>
+                <p className="settings-save-note">
+                  {formattedLastSaveLabel
+                    ? `Último guardado: ${formattedLastSaveLabel}`
+                    : 'Autoguardado activo'}
+                </p>
+                <button
+                  id="btn-save-game"
+                  type="button"
+                  onClick={handleManualSaveFromSettings}
+                  className="settings-save-btn"
+                >
+                  <Save className="w-4 h-4 shrink-0" />
+                  <span>Guardar partida</span>
+                </button>
+
+                {saveFeedback && (
+                  <div role="status" className="settings-feedback">
+                    <Check className="w-4 h-4 shrink-0" />
+                    <span className="truncate">
+                      Partida guardada ({saveFeedback.timeLabel}) · {saveFeedback.locationLabel}
+                    </span>
+                  </div>
+                )}
+              </section>
             </div>
 
-            {/* Opción visual complementaria + cierre */}
-            <div className="space-y-3 border-t border-white/15 pt-4">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-xs text-slate-300">Filtro Game Boy Verde</span>
+            {/* Presentación */}
+            <section className="settings-card">
+              <div className="settings-card__head">
+                <span className="settings-chip-icon settings-chip-icon--display">
+                  <Palette />
+                </span>
+                <div className="min-w-0">
+                  <h3 className="settings-card__title">Presentación</h3>
+                  <p className="settings-card__sub">Filtro visual y atajos</p>
+                </div>
+                <span className="settings-card__badge">VISUAL</span>
+              </div>
+
+              <div className="settings-row">
+                <div className="settings-row__copy">
+                  <span className="settings-row__label">Filtro Game Boy Verde</span>
+                  <span className="settings-row__hint">Paleta monocroma retro</span>
+                </div>
                 <button
                   type="button"
+                  role="switch"
+                  aria-checked={isGbGreenMode}
                   onClick={() => {
                     retroAudio.uiClick();
                     setIsGbGreenMode((prev) => !prev);
                   }}
-                  className="min-h-[38px] px-3.5 py-1.5 text-xs font-mono-tabular gbc-menu-btn cursor-pointer whitespace-nowrap shrink-0"
+                  className={`settings-switch ${isGbGreenMode ? 'is-on' : ''}`}
                 >
-                  {isGbGreenMode ? 'Activado' : 'Desactivado'}
+                  <span className="settings-switch__track" aria-hidden="true">
+                    <span className="settings-switch__thumb" />
+                  </span>
+                  <span>{isGbGreenMode ? 'Activado' : 'Desactivado'}</span>
                 </button>
               </div>
 
               {masterUnlocked && activeState !== 'state-title' && (
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs text-slate-300">Selector maestro de niveles</span>
+                <div className="settings-row">
+                  <div className="settings-row__copy">
+                    <span className="settings-row__label">Selector maestro de niveles</span>
+                    <span className="settings-row__hint">Salto rápido entre escenas</span>
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
@@ -1336,31 +1425,45 @@ export default function App() {
                       setSettingsOpen(false);
                       setLevelMenuOpen(true);
                     }}
-                    className="min-h-[38px] px-3.5 py-1.5 text-xs font-mono-tabular gbc-menu-btn text-[#00f3ff] cursor-pointer whitespace-nowrap shrink-0"
+                    className="settings-mini-btn"
                   >
-                    Abrir selector
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>Abrir selector</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
               )}
 
-              <div className="flex items-center justify-between gap-3 pt-1">
-                <span className="text-[11px] font-mono-tabular text-slate-400">
+              <div className="settings-keys">
+                <span className="settings-keys__hint">
                   {activeState === 'state-archipelago'
                     ? '[ENTER] Inventario · [K] Poderes · [ESC] Cerrar'
                     : '[ESC] Cerrar'}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    retroAudio.uiClick();
-                    setSettingsOpen(false);
-                  }}
-                  className="min-h-[40px] px-4 py-2 text-xs font-mono-tabular font-semibold gbc-menu-btn cursor-pointer whitespace-nowrap shrink-0"
-                >
-                  Cerrar
-                </button>
+                <span className="settings-keys__brand">
+                  <Sparkles className="w-3 h-3" />
+                  Ajustes guardados al instante
+                </span>
               </div>
+            </section>
             </div>
+
+            <footer className="settings-footer">
+              <span className="settings-footer__brand">
+                <Sparkles />
+                PIXELVERSE · SISTEMA
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  retroAudio.uiClick();
+                  setSettingsOpen(false);
+                }}
+                className="settings-done"
+              >
+                Listo
+              </button>
+            </footer>
           </div>
         </div>
       )}
@@ -1423,7 +1526,7 @@ export default function App() {
       )}
 
       {/* =========================================================
-          ESTADO 1: CINEMÁTICA INICIAL ÉPICA (COLAPSO Y SUPER CUPA)
+          ESTADO 1: CINEMÁTICA INICIAL (UNIVERSO PIXEL → CABAÑA)
          ========================================================= */}
       <section id="state-cinematic" className="view-state active z-10">
         {windowReady && activeState === 'state-cinematic' && (
@@ -1516,7 +1619,7 @@ export default function App() {
                         setSerialInput(e.target.value);
                         if (serialStatus === 'error') setSerialStatus('idle');
                       }}
-                      placeholder="Escribe aquí (Ej. ZUKA)"
+                      placeholder="Escribe aquí"
                       autoComplete="off"
                       autoFocus
                       spellCheck={false}

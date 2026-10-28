@@ -386,6 +386,42 @@ export function drawHandcraftedTree(
     ctx.fillStyle = pGlint;
     ctx.fillRect(-2, -67, 2, 2);
 
+    // Agujas sueltas en los bordes de cada faldón: rompen la silueta
+    // escalonada y aportan la aspereza propia de un pino.
+    const needleSites: [number, number, number][] = [
+      [-27, -18, 0], [-23, -24, 1], [-19, -38, 0], [-13, -52, 1],
+      [-8, -63, 0], [9, -61, 1], [15, -49, 0], [21, -36, 1],
+      [26, -25, 0], [22, -15, 1], [-25, -12, 1], [18, -11, 0],
+    ];
+    for (let i = 0; i < needleSites.length; i++) {
+      const [nx, ny, side] = needleSites[i];
+      ctx.fillStyle = i % 3 === 0 ? pSun : pMid;
+      ctx.fillRect(nx, ny, side ? 3 : 2, 2);
+      ctx.fillStyle = pShadow;
+      ctx.fillRect(nx + 1, ny + 2, 2, 1);
+      if (i % 4 === 0) {
+        ctx.fillStyle = pHigh;
+        ctx.fillRect(nx + (side ? 1 : 0), ny, 1, 1);
+      }
+    }
+
+    // Luz de borde del oeste sobre las capas superiores.
+    ctx.fillStyle = pHigh;
+    ctx.fillRect(-27, -22, 3, 1);
+    ctx.fillRect(-21, -37, 3, 1);
+    ctx.fillRect(-15, -50, 3, 1);
+    ctx.fillRect(-10, -62, 2, 1);
+    ctx.fillStyle = pGlint;
+    ctx.fillRect(-24, -23, 1, 1);
+    ctx.fillRect(-18, -38, 1, 1);
+
+    // Vetas de corteza y resina en el tronco.
+    ctx.fillStyle = 'rgba(224, 168, 108, 0.28)';
+    ctx.fillRect(-5, -8, 1, 6);
+    ctx.fillRect(-1, -7, 1, 4);
+    ctx.fillStyle = 'rgba(20, 10, 4, 0.4)';
+    ctx.fillRect(3, -9, 1, 7);
+
     // Piñas maduras y escamas de resina
     ctx.fillStyle = '#451a03';
     ctx.fillRect(-12, -18, 3, 4);
@@ -494,15 +530,67 @@ export function drawHandcraftedTree(
     };
 
     // 1. Lóbulo inferior izquierdo
-    drawFoliageLobe(-17, -26, 15, 14);
+    drawFoliageLobe(-17, -26, 15, 13);
     // 2. Lóbulo inferior derecho
-    drawFoliageLobe(17, -24, 15, 14);
-    // 3. Lóbulo medio izquierdo
-    drawFoliageLobe(-14, -42, 16, 15, true);
-    // 4. Lóbulo medio derecho
-    drawFoliageLobe(15, -39, 15, 14);
-    // 5. Cúpula superior de la corona
-    drawFoliageLobe(0, -52, 17, 16, true);
+    drawFoliageLobe(17, -25, 15, 13);
+    // 3. Lóbulo lateral izquierdo (ensancha la copa sin romper la silueta)
+    drawFoliageLobe(-22, -33, 10, 9);
+    // 4. Lóbulo lateral derecho
+    drawFoliageLobe(22, -32, 10, 9);
+    // 5. Lóbulo medio izquierdo
+    drawFoliageLobe(-13, -41, 16, 14, true);
+    // 6. Lóbulo medio derecho
+    drawFoliageLobe(13, -40, 15, 13);
+    // 7. Cúpula superior de la corona
+    drawFoliageLobe(0, -53, 17, 15, true);
+
+    // Hojas que muerden el contorno: el dosel pierde el borde de bloque y se
+    // lee como follaje denso, con mechones que sobresalen de la copa.
+    for (let i = 0; i < 34; i++) {
+      const th = (hashTile(i * 17 + Math.round(cx), Math.round(cy) - i * 3) % 1000) / 1000;
+      const ang = (i / 34) * Math.PI * 2 + th * 0.5;
+      const radiusX = 27 + th * 5;
+      const radiusY = 27 + th * 3;
+      const ex = Math.round(Math.cos(ang) * radiusX);
+      const ey = Math.round(-40 + Math.sin(ang) * radiusY);
+      if (ey > -8) continue;
+      const lit = Math.cos(ang) < -0.15 && Math.sin(ang) < 0.45;
+      ctx.fillStyle = i % 4 === 0 ? cSun : cMid;
+      ctx.fillRect(ex, ey, 3, 2);
+      if (lit) {
+        ctx.fillStyle = cHigh;
+        ctx.fillRect(ex, ey, 2, 1);
+        if (i % 5 === 0) {
+          ctx.fillStyle = cGlint;
+          ctx.fillRect(ex, ey, 1, 1);
+        }
+      } else if (i % 3 === 0) {
+        ctx.fillStyle = cShadow;
+        ctx.fillRect(ex + 1, ey + 1, 2, 1);
+      }
+    }
+
+    // Claros y costuras internas: separan los lóbulos y hunden el centro.
+    ctx.fillStyle = cShadow;
+    ctx.fillRect(-4, -33, 7, 2);
+    ctx.fillRect(5, -27, 5, 2);
+    ctx.fillRect(-12, -20, 4, 2);
+    ctx.fillRect(10, -47, 4, 2);
+    ctx.fillStyle = cOutline;
+    ctx.fillRect(-1, -34, 2, 1);
+    ctx.fillRect(8, -28, 1, 1);
+
+    // Racimos de hojas iluminadas y reflejo superior desde el oeste.
+    ctx.fillStyle = cHigh;
+    ctx.fillRect(-22, -44, 4, 2);
+    ctx.fillRect(-10, -57, 4, 2);
+    ctx.fillRect(4, -60, 3, 2);
+    ctx.fillRect(17, -35, 3, 2);
+    ctx.fillStyle = cGlint;
+    ctx.fillRect(-25, -45, 2, 1);
+    ctx.fillRect(-12, -58, 2, 1);
+    ctx.fillRect(5, -61, 2, 1);
+    ctx.fillRect(-18, -33, 2, 1);
 
     // Destellos de hojas / esporas bioluminiscentes en el bosque o flores en la pradera
     ctx.fillStyle = cSpore;
@@ -2356,14 +2444,60 @@ function drawStarShuttle(
   ctx.restore();
 }
 
+interface NpcLookSpec {
+  skin: number;
+  hair: number;
+  eyes: string;
+  beard?: boolean;
+}
+
+/** Tonos de piel y cabello para que cada aldeano tenga un rostro propio. */
+const NPC_SKIN_TONES = [
+  { base: '#f3c59c', light: '#ffdfbf', shade: '#d19a72', deep: '#ab6f4e' },
+  { base: '#dca36f', light: '#f4c795', shade: '#b2784a', deep: '#8a5633' },
+  { base: '#b97c50', light: '#d99b6d', shade: '#8e5737', deep: '#693d26' },
+  { base: '#8a5738', light: '#a9704b', shade: '#6b402a', deep: '#4b2b1c' },
+];
+
+const NPC_HAIR_TONES = [
+  { base: '#1f2937', light: '#3b4a5f', dark: '#0b1220' },
+  { base: '#5b3a1e', light: '#8b5a2b', dark: '#2a1608' },
+  { base: '#7a2e1d', light: '#b45309', dark: '#361007' },
+  { base: '#6b7280', light: '#cbd5e1', dark: '#374151' },
+  { base: '#b7791f', light: '#f2c94c', dark: '#5c3a07' },
+];
+
+const NPC_LOOKS: Record<string, NpcLookSpec> = {
+  'npc-bit01': { skin: 0, hair: 3, eyes: '#3b6b8a' },
+  'npc-ambar': { skin: 1, hair: 2, eyes: '#6b4423' },
+  'npc-guardabosques-nilo': { skin: 2, hair: 1, eyes: '#3f6212' },
+  'npc-eco-caverna': { skin: 3, hair: 0, eyes: '#4c1d95' },
+  'npc-cartografo-isla': { skin: 1, hair: 1, eyes: '#7c2d12', beard: true },
+  'npc-guardian-cumbre': { skin: 0, hair: 4, eyes: '#1e3a8a' },
+  'npc-custodio-rodo': { skin: 2, hair: 0, eyes: '#1e40af' },
+  'npc-operadora-nora': { skin: 1, hair: 2, eyes: '#9d174d' },
+};
+
+function resolveNpcLook(id: string): NpcLookSpec {
+  const known = NPC_LOOKS[id];
+  if (known) return known;
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return {
+    skin: h % NPC_SKIN_TONES.length,
+    hair: (h >> 3) % NPC_HAIR_TONES.length,
+    eyes: '#334155',
+  };
+}
+
 /**
  * SPRITE DE PERSONAJES NO JUGABLES (NPCs) ESTILO GBA RPG (POKÉMON ESMERALDA / ROJO FUEGO)
  * - Proporciones estándar GBA de 16×24 píxeles lógicos con contornos nítidos y paletas ricas
- * - Sombra elíptica de contacto en suelo
- * - Ropa con luces, sombras de pliegues, cinturones y accesorios de profesión
- * - Rasgos faciales anime con ojos definidos y destellos blancos
+ * - Sombra de contacto en suelo con pies plantados: solo respira el tren superior
+ * - Tonos de piel, cabello y ojos propios por aldeano para rostros diferenciados
+ * - Rasgos faciales con mandíbula, orejas, cejas, iris, nariz y boca
+ * - Ropa con hombros, pliegues, botonadura, puños y manos; accesorios de profesión
  * - Sombreros y atuendos personalizados según el rol de cada cronista, arqueólogo o explorador
- * - Animación sutil de respiración o balanceo rítmico
  */
 function drawGbaNpcSprite(
   ctx: CanvasRenderingContext2D,
@@ -2372,156 +2506,298 @@ function drawGbaNpcSprite(
   reducedMotion: boolean,
   animFrame4: number
 ): void {
-  const nbob = reducedMotion ? 0 : (animFrame4 + Math.floor(npc.x * 0.05)) % 2 === 0 ? 0 : -1;
+  const look = resolveNpcLook(npc.id);
+  const skin = NPC_SKIN_TONES[look.skin];
+  const hair = NPC_HAIR_TONES[look.hair];
+
+  // Respiración sutil de 1 píxel: los pies y las piernas permanecen plantados.
+  const breath = reducedMotion ? 0 : Math.round(Math.sin(elapsed * 1.6 + npc.x * 0.045));
   const x = Math.round(npc.x);
-  const y = Math.round(npc.y + nbob);
+  const y = Math.round(npc.y);
 
   ctx.save();
   ctx.translate(x, y);
 
   // 1. Sombra de contacto en el suelo
-  ctx.fillStyle = 'rgba(5, 8, 14, 0.44)';
-  ctx.fillRect(-8, 2, 16, 5);
-  ctx.fillRect(-6, 1, 12, 7);
+  ctx.fillStyle = 'rgba(5, 8, 14, 0.18)';
+  ctx.fillRect(-10, 3, 20, 3);
+  ctx.fillStyle = 'rgba(5, 8, 14, 0.42)';
+  ctx.fillRect(-8, 2, 16, 4);
+  ctx.fillRect(-6, 1, 12, 6);
 
-  // 2. Calzado / botas (estilo explorador con suela de cuero y puntera iluminada)
+  // 2. Botas de explorador: suela oscura, empeine iluminado y cordones
   ctx.fillStyle = '#070b14';
-  ctx.fillRect(-7, 0, 5, 5);
-  ctx.fillRect(2, 0, 5, 5);
-  ctx.fillStyle = '#334155';
-  ctx.fillRect(-6, 1, 3, 3);
-  ctx.fillRect(3, 1, 3, 3);
-  ctx.fillStyle = '#64748b';
-  ctx.fillRect(-6, 1, 2, 1);
-  ctx.fillRect(3, 1, 2, 1);
-
-  // 3. Pantalones / piernas
-  ctx.fillStyle = '#070b14';
-  ctx.fillRect(-7, -8, 14, 9);
+  ctx.fillRect(-7, 0, 6, 5);
+  ctx.fillRect(2, 0, 6, 5);
   ctx.fillStyle = '#1e293b';
-  ctx.fillRect(-6, -7, 5, 7);
-  ctx.fillRect(1, -7, 5, 7);
-  // Separación de perneras
-  ctx.fillStyle = '#070b14';
-  ctx.fillRect(-1, -7, 2, 7);
+  ctx.fillRect(-6, 1, 4, 4);
+  ctx.fillRect(3, 1, 4, 4);
+  ctx.fillStyle = '#475569';
+  ctx.fillRect(-6, 1, 4, 1);
+  ctx.fillRect(3, 1, 4, 1);
+  ctx.fillStyle = '#cbd5e1';
+  ctx.fillRect(-5, 2, 2, 1);
+  ctx.fillRect(4, 2, 2, 1);
 
-  // 4. Cinturón con hebilla decorativa
+  // 3. Pantalones con rodilla marcada y costura central
   ctx.fillStyle = '#070b14';
-  ctx.fillRect(-7, -10, 14, 3);
-  ctx.fillStyle = '#78350f';
-  ctx.fillRect(-6, -9, 12, 2);
+  ctx.fillRect(-7, -9, 14, 10);
+  ctx.fillStyle = '#243449';
+  ctx.fillRect(-6, -8, 5, 7);
+  ctx.fillRect(1, -8, 5, 7);
+  ctx.fillStyle = '#16202f';
+  ctx.fillRect(-6, -4, 5, 2);
+  ctx.fillRect(1, -4, 5, 2);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+  ctx.fillRect(-6, -8, 1, 4);
+  ctx.fillRect(1, -8, 1, 4);
+  ctx.fillStyle = '#070b14';
+  ctx.fillRect(-1, -8, 2, 8);
+
+  // 4. Cinturón de cuero con hebilla y bolsa
+  ctx.fillStyle = '#070b14';
+  ctx.fillRect(-7, -11, 14, 3);
+  ctx.fillStyle = '#8a5a2b';
+  ctx.fillRect(-6, -10, 12, 2);
+  ctx.fillStyle = '#5b3a1e';
+  ctx.fillRect(-6, -10, 12, 1);
   ctx.fillStyle = '#facc15';
-  ctx.fillRect(-2, -10, 4, 3);
+  ctx.fillRect(-2, -11, 4, 3);
+  ctx.fillStyle = '#fde68a';
+  ctx.fillRect(-2, -11, 4, 1);
 
-  // 5. Torso / atuendo principal con sombras y luces volumétricas
+  // 5. Tronco y brazos: respiran con un desplazamiento superior de 1 píxel
+  ctx.save();
+  ctx.translate(0, breath);
+
+  // Silueta con hombros redondeados y cintura
   ctx.fillStyle = '#070b14';
-  ctx.fillRect(-8, -20, 16, 11);
+  ctx.fillRect(-8, -21, 16, 12);
+  ctx.fillRect(-9, -20, 1, 4);
+  ctx.fillRect(8, -20, 1, 4);
 
-  // Tonalidad principal
+  // Tela principal con volumen
   ctx.fillStyle = npc.palette.primary;
-  ctx.fillRect(-7, -19, 14, 9);
-
-  // Pliegues y sombreado lateral en el torso
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
-  ctx.fillRect(4, -19, 3, 9);
+  ctx.fillRect(-7, -20, 14, 10);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+  ctx.fillRect(-7, -20, 5, 2);
+  ctx.fillRect(-6, -18, 2, 4);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.30)';
+  ctx.fillRect(4, -20, 3, 10);
   ctx.fillRect(-7, -12, 14, 2);
-  // Realce de luz cenital en el hombro izquierdo
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.28)';
-  ctx.fillRect(-7, -19, 4, 3);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.16)';
+  ctx.fillRect(-4, -17, 1, 4);
+  ctx.fillRect(3, -16, 1, 4);
 
-  // Cuello / solapas / chaleco con el color secundario
+  // Camisa interior y cuello en V
+  ctx.fillStyle = '#070b14';
+  ctx.fillRect(-5, -21, 10, 4);
   ctx.fillStyle = npc.palette.secondary;
-  ctx.fillRect(-4, -19, 8, 4);
+  ctx.fillRect(-4, -20, 8, 3);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.28)';
+  ctx.fillRect(-4, -20, 3, 1);
   ctx.fillStyle = '#070b14';
-  ctx.fillRect(-1, -19, 2, 5);
+  ctx.fillRect(-2, -20, 4, 2);
+  ctx.fillRect(-1, -18, 2, 2);
 
-  // Brazos y manos a los lados
+  // Botonadura central
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.30)';
+  ctx.fillRect(0, -17, 1, 5);
+  ctx.fillStyle = '#fde68a';
+  ctx.fillRect(0, -16, 1, 1);
+  ctx.fillRect(0, -13, 1, 1);
+
+  // Mangas con puño y manos de piel
   ctx.fillStyle = '#070b14';
-  ctx.fillRect(-9, -18, 3, 10);
-  ctx.fillRect(6, -18, 3, 10);
+  ctx.fillRect(-9, -19, 3, 9);
+  ctx.fillRect(6, -19, 3, 9);
   ctx.fillStyle = npc.palette.primary;
-  ctx.fillRect(-8, -17, 2, 6);
-  ctx.fillRect(6, -17, 2, 6);
-  // Manos en tono de piel
-  ctx.fillStyle = '#fed7aa';
-  ctx.fillRect(-8, -11, 2, 3);
-  ctx.fillRect(6, -11, 2, 3);
+  ctx.fillRect(-8, -18, 2, 5);
+  ctx.fillRect(6, -18, 2, 5);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.30)';
+  ctx.fillRect(7, -18, 1, 5);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+  ctx.fillRect(-8, -18, 1, 2);
+  ctx.fillStyle = npc.palette.secondary;
+  ctx.fillRect(-8, -13, 2, 1);
+  ctx.fillRect(6, -13, 2, 1);
+  ctx.fillStyle = skin.base;
+  ctx.fillRect(-8, -12, 2, 3);
+  ctx.fillRect(6, -12, 2, 3);
+  ctx.fillStyle = skin.shade;
+  ctx.fillRect(-8, -10, 2, 1);
+  ctx.fillRect(6, -10, 2, 1);
+  ctx.fillStyle = skin.light;
+  ctx.fillRect(-8, -12, 1, 1);
+  ctx.fillRect(6, -12, 1, 1);
 
-  // 6. Cabeza y rostro (tono piel cálido anime)
+  // 6. Cabeza con mandíbula escalonada, orejas y sombreado facial
   ctx.fillStyle = '#070b14';
-  ctx.fillRect(-6, -29, 12, 10);
-  ctx.fillStyle = '#fed7aa';
-  ctx.fillRect(-5, -28, 10, 8);
-  // Sombra suave bajo la barbilla
-  ctx.fillStyle = '#fba373';
-  ctx.fillRect(-4, -21, 8, 1);
+  ctx.fillRect(-6, -30, 12, 9);
+  ctx.fillRect(-5, -21, 10, 3);
+  ctx.fillStyle = skin.base;
+  ctx.fillRect(-5, -29, 10, 8);
+  ctx.fillRect(-4, -21, 8, 2);
+  ctx.fillStyle = skin.shade;
+  ctx.fillRect(3, -29, 2, 8);
+  ctx.fillRect(-4, -20, 2, 1);
+  ctx.fillRect(2, -20, 2, 1);
+  ctx.fillStyle = skin.light;
+  ctx.fillRect(-5, -29, 3, 2);
+  ctx.fillRect(-5, -23, 2, 2);
+  // Orejas
+  ctx.fillStyle = skin.shade;
+  ctx.fillRect(-6, -26, 1, 3);
+  ctx.fillRect(5, -26, 1, 3);
 
-  // Ojos estilo GBA (pupila expresiva con destello blanco)
-  ctx.fillStyle = '#070b14';
-  ctx.fillRect(-4, -25, 2, 3);
-  ctx.fillRect(2, -25, 2, 3);
+  // Cabello: casquete, flequillo escalonado y patillas
+  ctx.fillStyle = hair.dark;
+  ctx.fillRect(-5, -30, 10, 1);
+  ctx.fillStyle = hair.base;
+  ctx.fillRect(-5, -29, 10, 2);
+  ctx.fillStyle = hair.light;
+  ctx.fillRect(-4, -29, 4, 1);
+  ctx.fillStyle = hair.base;
+  ctx.fillRect(-5, -27, 3, 1);
+  ctx.fillRect(-1, -27, 2, 1);
+  ctx.fillRect(2, -27, 3, 1);
+  ctx.fillStyle = hair.dark;
+  ctx.fillRect(-5, -27, 1, 3);
+  ctx.fillRect(4, -27, 1, 3);
+
+  // Cejas, ojos con iris y destello, nariz y boca
+  ctx.fillStyle = hair.dark;
+  ctx.fillRect(-4, -26, 3, 1);
+  ctx.fillRect(2, -26, 3, 1);
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillRect(-4, -25, 3, 2);
+  ctx.fillRect(2, -25, 3, 2);
+  ctx.fillStyle = look.eyes;
+  ctx.fillRect(-3, -25, 1, 2);
+  ctx.fillRect(3, -25, 1, 2);
+  ctx.fillStyle = '#0b1220';
+  ctx.fillRect(-3, -24, 1, 1);
+  ctx.fillRect(3, -24, 1, 1);
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(-4, -25, 1, 1);
   ctx.fillRect(2, -25, 1, 1);
+  ctx.fillStyle = skin.shade;
+  ctx.fillRect(0, -23, 1, 2);
+
+  // Barba opcional del cartógrafo
+  if (look.beard) {
+    ctx.fillStyle = hair.base;
+    ctx.fillRect(-4, -22, 8, 2);
+    ctx.fillRect(-3, -20, 6, 1);
+    ctx.fillStyle = hair.light;
+    ctx.fillRect(-4, -22, 8, 1);
+  }
+  ctx.fillStyle = look.beard ? '#3f2418' : skin.shade;
+  ctx.fillRect(-1, -21, 3, 1);
+  if (!look.beard) {
+    ctx.fillStyle = skin.deep;
+    ctx.fillRect(0, -21, 1, 1);
+  }
 
   // 7. Accesorios y tocados específicos según el rol del NPC
   if (npc.id === 'npc-bit01') {
-    // Bit-01: Boina de erudito/cronista con pluma dorada y monóculo
+    // Bit-01: Boina de erudito/cronista con vivo claro, pluma y monóculo
     ctx.fillStyle = '#070b14';
-    ctx.fillRect(-8, -32, 16, 5);
-    ctx.fillRect(-9, -30, 4, 3);
+    ctx.fillRect(-8, -33, 16, 5);
+    ctx.fillRect(-9, -31, 4, 3);
     ctx.fillStyle = npc.palette.secondary;
-    ctx.fillRect(-7, -31, 14, 3);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(-6, -31, 4, 1);
+    ctx.fillRect(-7, -32, 14, 3);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.fillRect(-6, -32, 6, 1);
+    ctx.fillStyle = '#070b14';
+    ctx.fillRect(-1, -35, 2, 3);
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillRect(-1, -35, 1, 2);
+    // Sombra de la boina sobre la frente
+    ctx.fillStyle = 'rgba(5, 8, 14, 0.35)';
+    ctx.fillRect(-5, -28, 10, 1);
+    // Monóculo dorado sobre el ojo derecho
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillRect(2, -26, 3, 1);
+    ctx.fillRect(2, -23, 3, 1);
+    ctx.fillRect(1, -25, 1, 2);
+    ctx.fillRect(5, -25, 1, 2);
     // Rollo de pergamino en bandolera
     ctx.fillStyle = '#070b14';
     ctx.fillRect(4, -16, 4, 8);
     ctx.fillStyle = '#fef08a';
     ctx.fillRect(5, -15, 2, 6);
+    ctx.fillStyle = '#d6b25e';
+    ctx.fillRect(5, -15, 2, 1);
+    ctx.fillRect(5, -10, 2, 1);
   } else if (npc.id === 'npc-ambar') {
-    // Ámbar: Sombrero de ala ancha de arqueóloga con cinta marrón
+    // Ámbar: Sombrero de ala ancha de arqueóloga con cinta y libreta de campo
     ctx.fillStyle = '#070b14';
     ctx.fillRect(-9, -30, 18, 4);
     ctx.fillRect(-6, -34, 12, 5);
     ctx.fillStyle = '#fef08a';
     ctx.fillRect(-8, -29, 16, 2);
     ctx.fillRect(-5, -33, 10, 4);
-    // Cinta marrón del sombrero
+    ctx.fillStyle = '#e8cf72';
+    ctx.fillRect(-5, -30, 10, 1);
     ctx.fillStyle = '#78350f';
-    ctx.fillRect(-5, -30, 10, 2);
-    // Libreta o lupa arqueológica
+    ctx.fillRect(-5, -32, 10, 1);
+    ctx.fillStyle = '#a16207';
+    ctx.fillRect(-5, -31, 10, 1);
+    // Sombra del ala sobre el rostro
+    ctx.fillStyle = 'rgba(5, 8, 14, 0.28)';
+    ctx.fillRect(-5, -26, 10, 1);
+    // Libreta de campo con cantos de papel
+    ctx.fillStyle = '#070b14';
+    ctx.fillRect(4, -15, 4, 4);
     ctx.fillStyle = '#38bdf8';
-    ctx.fillRect(5, -14, 3, 3);
+    ctx.fillRect(5, -14, 2, 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(5, -14, 1, 1);
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(6, -11, 1, 2);
   } else if (npc.id === 'npc-guardabosques-nilo') {
-    // Nilo: Gorra de guardabosques con visera y cantimplora de campo
+    // Nilo: Gorra de guardabosques con visera, insignia y cantimplora
     ctx.fillStyle = '#070b14';
     ctx.fillRect(-7, -32, 14, 5);
-    ctx.fillRect(-8, -28, 6, 2);
+    ctx.fillRect(-8, -28, 7, 2);
     ctx.fillStyle = npc.palette.secondary;
     ctx.fillRect(-6, -31, 12, 4);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.fillRect(-6, -31, 6, 1);
     ctx.fillStyle = '#4ca64c';
-    ctx.fillRect(-7, -28, 5, 1);
+    ctx.fillRect(-8, -28, 6, 1);
+    // Insignia de hoja
+    ctx.fillStyle = '#86efac';
+    ctx.fillRect(-1, -30, 2, 1);
+    ctx.fillRect(0, -29, 1, 1);
     // Cantimplora al cinto
     ctx.fillStyle = '#070b14';
-    ctx.fillRect(-8, -13, 3, 4);
+    ctx.fillRect(-8, -14, 4, 5);
     ctx.fillStyle = '#64748b';
-    ctx.fillRect(-7, -12, 2, 3);
+    ctx.fillRect(-7, -13, 2, 3);
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillRect(-7, -13, 1, 1);
   } else if (npc.id === 'npc-eco-caverna') {
-    // Cuarzo: Casco de minero/espeleólogo con linterna frontal brillante
+    // Cuarzo: Casco de espeleólogo con lámpara frontal cian
     ctx.fillStyle = '#070b14';
     ctx.fillRect(-7, -33, 14, 6);
     ctx.fillStyle = '#94a3b8';
     ctx.fillRect(-6, -32, 12, 5);
     ctx.fillStyle = '#cbd5e1';
     ctx.fillRect(-5, -32, 5, 2);
-    // Lámpara minera frontal cian
+    ctx.fillStyle = '#64748b';
+    ctx.fillRect(2, -32, 4, 1);
+    // Lámpara frontal con parpadeo
     ctx.fillStyle = '#070b14';
     ctx.fillRect(-2, -31, 4, 4);
     ctx.fillStyle = animFrame4 % 2 === 0 ? '#38bdf8' : '#00f3ff';
     ctx.fillRect(-1, -30, 2, 2);
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(-1, -30, 1, 1);
+    // Sombra del casco sobre los ojos
+    ctx.fillStyle = 'rgba(5, 8, 14, 0.40)';
+    ctx.fillRect(-5, -28, 10, 1);
   } else if (npc.id === 'npc-cartografo-isla') {
     // Cartógrafo del Caos: Capucha carmesí de viajero y estuche de mapas
     ctx.fillStyle = '#070b14';
@@ -2532,28 +2808,101 @@ function drawGbaNpcSprite(
     ctx.fillRect(-7, -31, 14, 5);
     ctx.fillRect(-7, -27, 2, 7);
     ctx.fillRect(5, -27, 2, 7);
+    ctx.fillStyle = '#b45309';
+    ctx.fillRect(-7, -31, 14, 1);
+    ctx.fillStyle = 'rgba(5, 8, 14, 0.30)';
+    ctx.fillRect(-5, -28, 10, 1);
     // Tubo porta-mapas a la espalda
     ctx.fillStyle = '#070b14';
-    ctx.fillRect(5, -22, 3, 12);
+    ctx.fillRect(5, -22, 4, 12);
     ctx.fillStyle = '#f59e0b';
     ctx.fillRect(6, -21, 2, 10);
+    ctx.fillStyle = '#fde68a';
+    ctx.fillRect(6, -21, 2, 1);
+    ctx.fillStyle = '#b45309';
+    ctx.fillRect(6, -14, 2, 1);
+  } else if (npc.id === 'npc-custodio-rodo') {
+    // Custodio Rodo: Casco con cresta, protector nasal y hombrera
+    ctx.fillStyle = '#070b14';
+    ctx.fillRect(-7, -33, 14, 6);
+    ctx.fillRect(-8, -28, 2, 3);
+    ctx.fillRect(6, -28, 2, 3);
+    ctx.fillStyle = npc.palette.primary;
+    ctx.fillRect(-6, -32, 12, 5);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.30)';
+    ctx.fillRect(-6, -32, 6, 1);
+    ctx.fillStyle = npc.palette.secondary;
+    ctx.fillRect(-6, -29, 12, 1);
+    // Cresta del casco
+    ctx.fillStyle = '#070b14';
+    ctx.fillRect(-1, -35, 3, 3);
+    ctx.fillStyle = npc.palette.glow;
+    ctx.fillRect(0, -35, 1, 2);
+    // Protector nasal
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillRect(-1, -28, 2, 2);
+    // Hombrera izquierda
+    ctx.fillStyle = '#070b14';
+    ctx.fillRect(-10, -20, 5, 5);
+    ctx.fillStyle = npc.palette.primary;
+    ctx.fillRect(-9, -19, 3, 3);
+    ctx.fillStyle = npc.palette.secondary;
+    ctx.fillRect(-9, -19, 3, 1);
+  } else if (npc.id === 'npc-operadora-nora') {
+    // Operadora Nora: coleta, diadema con auriculares y micrófono
+    ctx.fillStyle = hair.dark;
+    ctx.fillRect(5, -28, 4, 8);
+    ctx.fillStyle = hair.base;
+    ctx.fillRect(6, -27, 2, 6);
+    ctx.fillStyle = hair.light;
+    ctx.fillRect(6, -27, 1, 3);
+    // Diadema
+    ctx.fillStyle = '#070b14';
+    ctx.fillRect(-6, -30, 12, 2);
+    ctx.fillStyle = '#334155';
+    ctx.fillRect(-6, -30, 12, 1);
+    // Auriculares
+    ctx.fillStyle = '#070b14';
+    ctx.fillRect(-7, -27, 3, 5);
+    ctx.fillRect(5, -27, 3, 5);
+    ctx.fillStyle = npc.palette.secondary;
+    ctx.fillRect(-6, -26, 2, 3);
+    ctx.fillRect(5, -26, 2, 3);
+    // Micrófono frente al rostro
+    ctx.fillStyle = '#070b14';
+    ctx.fillRect(-5, -24, 2, 1);
+    ctx.fillRect(-4, -23, 2, 1);
+    ctx.fillRect(-3, -22, 2, 2);
+    ctx.fillStyle = npc.palette.glow;
+    ctx.fillRect(-3, -22, 1, 1);
+    // Aro luminoso de los auriculares
+    ctx.fillStyle = npc.palette.glow;
+    ctx.fillRect(-6, -25, 1, 1);
+    ctx.fillRect(5, -25, 1, 1);
   } else {
-    // Vigía del Cráter y otros: Gorro de montaña con bufanda al cuello
+    // Vigía del Cráter: gorro de montaña con pompón y bufanda al cuello
     ctx.fillStyle = '#070b14';
     ctx.fillRect(-7, -32, 14, 6);
     ctx.fillStyle = npc.palette.secondary;
     ctx.fillRect(-6, -31, 12, 5);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(-1, -34, 3, 3); // pompón
-    // Bufanda enrollada al cuello
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.32)';
+    ctx.fillRect(-6, -31, 5, 1);
     ctx.fillStyle = '#070b14';
-    ctx.fillRect(-6, -21, 12, 4);
-    ctx.fillRect(4, -18, 3, 6);
+    ctx.fillRect(-1, -35, 3, 3);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, -34, 1, 1);
+    // Bufanda enrollada al cuello con caída lateral
+    ctx.fillStyle = '#070b14';
+    ctx.fillRect(-6, -20, 12, 4);
+    ctx.fillRect(4, -17, 3, 6);
     ctx.fillStyle = npc.palette.secondary;
-    ctx.fillRect(-5, -20, 10, 3);
-    ctx.fillRect(5, -17, 2, 5);
+    ctx.fillRect(-5, -19, 10, 3);
+    ctx.fillRect(5, -16, 2, 5);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.30)';
+    ctx.fillRect(-5, -19, 8, 1);
   }
 
+  ctx.restore();
   ctx.restore();
 }
 
@@ -2685,26 +3034,23 @@ function drawGbcWalkableSurfaceTile(
     // ----------------------------------------------------
     // ARENA DE PLAYA DORADA GBA (COSTA DEL DESPERTAR)
     // ----------------------------------------------------
-    const sandBase = (h & 3) === 0 ? '#dfc17a' : (h & 1) === 0 ? '#e8cc88' : '#e4c781';
-    ctx.fillStyle = sandBase;
+    // Base uniforme: el volumen lo aporta el lavado de suelo por sector, así
+    // que no aparece una cuadrícula de 32 px.
+    ctx.fillStyle = '#e3c780';
     ctx.fillRect(wx, wy, CELL, CELL);
 
-    // Ondulaciones eólicas (suaves líneas onduladas de dunas)
-    ctx.fillStyle = '#caa356';
-    const ripY1 = 6 + (h % 5);
-    const ripY2 = 20 + ((h >> 2) % 6);
-    ctx.fillRect(wx + 2, wy + ripY1, 12, 1);
-    ctx.fillRect(wx + 16, wy + ripY1 + 1, 14, 1);
-    ctx.fillRect(wx + 4, wy + ripY2, 16, 1);
-    ctx.fillRect(wx + 22, wy + ripY2 - 1, 8, 1);
-
-    // Resaltes luminosos de arena secada al sol
-    ctx.fillStyle = '#f4e2a8';
-    ctx.fillRect(wx + 2, wy + ripY1 - 1, 10, 1);
-    ctx.fillRect(wx + 4, wy + ripY2 - 1, 12, 1);
+    // Grano de arena anclado a coordenadas de mundo (continúa entre celdas).
+    for (let gy = wy + (h & 3); gy < wy + CELL; gy += 8) {
+      for (let gx = wx + ((h >> 4) & 3); gx < wx + CELL; gx += 8) {
+        const th = hashTile(gx, gy) % 100;
+        if (th < 62) continue;
+        ctx.fillStyle = th > 86 ? 'rgba(253, 243, 208, 0.5)' : 'rgba(170, 132, 74, 0.28)';
+        ctx.fillRect(gx, gy, 1, 1);
+      }
+    }
 
     // Pequeños guijarros costeros y conchas marinas
-    if (h % 4 === 0) {
+    if (h % 13 === 0) {
       // Concha marina rosada/blanca
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(wx + 7 + (h % 16), wy + 8 + ((h >> 3) % 16), 2, 2);
@@ -2718,7 +3064,7 @@ function drawGbcWalkableSurfaceTile(
       ctx.fillStyle = '#cbd5e1';
       ctx.fillRect(wx + 18, wy + 16, 2, 1);
     }
-    if (h % 11 === 0) {
+    if (h % 41 === 5) {
       // Juncos de mar / mata costera
       ctx.fillStyle = '#5c4028';
       ctx.fillRect(wx + 10, wy + 20, 10, 2);
@@ -2777,62 +3123,44 @@ function drawGbcWalkableSurfaceTile(
   }
 
   if (surface === 'cobble') {
-    // ----------------------------------------------------
-    // EMPEDRADO ARTESANAL GBA (ALDEA DE LOS ORÍGENES Y RUINAS)
-    // ----------------------------------------------------
+    // Empedrado irregular de patio: cantos redondeados, mortero oscuro y musgo.
     const isRuins = zoneId === 'ruinas-primer-arcade';
-
-    // Base de mortero
-    ctx.fillStyle = isRuins ? '#374151' : '#655331';
+    ctx.fillStyle = isRuins ? '#3a414c' : '#5a4a36';
     ctx.fillRect(wx, wy, CELL, CELL);
 
-    // 4 grandes losas talladas de 14×14 px por celda de 32×32 con biseles de luz y sombra
-    const stoneCol = isRuins ? '#8b98a8' : '#d6c394';
-    const stoneHi = isRuins ? '#cbd5e1' : '#f2e7c4';
-    const stoneShadow = isRuins ? '#64748b' : '#a99464';
+    const palettes = isRuins
+      ? ['#8b96a4', '#9aa6b4', '#7c8794', '#a8b3c0', '#6f7a88']
+      : ['#cbb48a', '#d8c49a', '#bba67a', '#e4d4ae', '#a8946c'];
+    const hi = isRuins ? '#dbe4ee' : '#f4ead0';
+    const sh = isRuins ? '#556070' : '#8a734c';
 
-    const drawPaver = (px: number, py: number, pw: number, ph: number, variantH: number) => {
-      // Cara de la losa
-      ctx.fillStyle = stoneCol;
-      ctx.fillRect(px, py, pw, ph);
-
-      // Biseles de luz superior e izquierdo (estilo GBA nítido)
-      ctx.fillStyle = stoneHi;
-      ctx.fillRect(px, py, pw, 1);
-      ctx.fillRect(px, py, 1, ph);
-
-      // Biseles de sombra inferior y derecho
-      ctx.fillStyle = stoneShadow;
-      ctx.fillRect(px, py + ph - 1, pw, 1);
-      ctx.fillRect(px + pw - 1, py, 1, ph);
-
-      // Grietas o texturas internas en algunas piedras
-      if (variantH % 3 === 0) {
-        ctx.fillStyle = stoneShadow;
-        ctx.fillRect(px + 4, py + 5, 4, 1);
-        ctx.fillRect(px + 7, py + 6, 1, 3);
+    for (let row = 0; row < 4; row++) {
+      const odd = row % 2;
+      for (let col = 0; col < 4; col++) {
+        const th = hashTile(wx + col * 9 + odd * 3, wy + row * 8);
+        const px = wx + col * 8 + (odd ? 3 : 0) + (th % 2);
+        const py = wy + row * 8 + ((th >> 3) % 2);
+        const pw = 7 + (th % 3);
+        const ph = 6 + ((th >> 4) % 3);
+        if (px + 2 >= wx + CELL || py + 2 >= wy + CELL) continue;
+        const clippedW = Math.min(pw, wx + CELL - px - 1);
+        const clippedH = Math.min(ph, wy + CELL - py - 1);
+        if (clippedW < 3 || clippedH < 3) continue;
+        ctx.fillStyle = palettes[th % palettes.length];
+        ctx.fillRect(px, py, clippedW, clippedH);
+        ctx.fillStyle = hi;
+        ctx.fillRect(px + 1, py, Math.max(1, clippedW - 3), 1);
+        ctx.fillRect(px, py + 1, 1, Math.max(1, clippedH - 2));
+        ctx.fillStyle = sh;
+        ctx.fillRect(px + 1, py + clippedH - 1, Math.max(1, clippedW - 1), 1);
+        ctx.fillRect(px + clippedW - 1, py + 1, 1, Math.max(1, clippedH - 2));
+        if (th % 7 === 0) {
+          ctx.fillStyle = sh;
+          ctx.fillRect(px + 2, py + 2, 2, 1);
+        }
       }
-    };
-
-    drawPaver(wx + 1, wy + 1, 14, 14, h);
-    drawPaver(wx + 17, wy + 1, 14, 14, h >> 2);
-    drawPaver(wx + 1, wy + 17, 14, 14, h >> 4);
-    drawPaver(wx + 17, wy + 17, 14, 14, h >> 6);
-
-    // Astillas de piedra y desgaste en las juntas
-    if (h % 6 === 1) {
-      ctx.fillStyle = isRuins ? '#94a3b8' : '#e8dbae';
-      ctx.fillRect(wx + 14, wy + 15, 2, 1);
-      ctx.fillStyle = stoneShadow;
-      ctx.fillRect(wx + 16, wy + 15, 1, 1);
-    }
-    if (h % 9 === 3) {
-      ctx.fillStyle = stoneShadow;
-      ctx.fillRect(wx + 15, wy + 4, 1, 3);
-      ctx.fillRect(wx + 16, wy + 7, 1, 2);
     }
 
-    // Detalles entre juntas: musgo vivo en aldea o circuito de pulso en ruinas
     if (isRuins) {
       if (h % 5 === 0) {
         ctx.fillStyle = '#00f3ff';
@@ -2840,14 +3168,15 @@ function drawGbcWalkableSurfaceTile(
         ctx.fillStyle = '#38bdf8';
         ctx.fillRect(wx + 8, wy + 15, 16, 2);
       }
-    } else {
-      if (h % 4 === 0) {
-        // Mata de musgo entre losas
-        ctx.fillStyle = '#2d6d34';
-        ctx.fillRect(wx + 14, wy + 14, 4, 4);
-        ctx.fillStyle = '#65ad4d';
-        ctx.fillRect(wx + 15, wy + 15, 2, 2);
-      }
+    } else if (h % 4 === 0) {
+      ctx.fillStyle = '#2d6d34';
+      ctx.fillRect(wx + 14, wy + 14, 4, 3);
+      ctx.fillStyle = '#65ad4d';
+      ctx.fillRect(wx + 15, wy + 14, 2, 2);
+    }
+    if (h % 11 === 2) {
+      ctx.fillStyle = isRuins ? 'rgba(20, 24, 32, 0.28)' : 'rgba(40, 28, 14, 0.22)';
+      ctx.fillRect(wx + 6, wy + 20, 12, 2);
     }
     return;
   }
@@ -2866,11 +3195,11 @@ function drawGbcWalkableSurfaceTile(
     const patch = (macroX * 3 + macroY * 7 + (h & 1)) % 4;
 
     // Paletas GBA de césped
-    let grassBase = '#42a344';
-    let grassDark = '#349237';
-    let grassLight = '#50b552';
-    let tuftTip = '#74db5e';
-    let tuftShadow = '#267b2a';
+    let grassBase = '#3f9440';
+    let grassDark = '#2f7c33';
+    let grassLight = '#4fae4c';
+    let tuftTip = '#7ad463';
+    let tuftShadow = '#226a27';
 
     if (isForest) {
       grassBase = patch === 0 ? '#1b5a38' : patch === 1 ? '#206841' : '#1d5f3c';
@@ -2885,26 +3214,27 @@ function drawGbcWalkableSurfaceTile(
       tuftTip = '#4ade80';
       tuftShadow = '#0d3627';
     } else {
-      grassBase = patch === 0 ? '#44a646' : patch === 1 ? '#4db34f' : patch === 2 ? '#3c9a3e' : '#41a243';
-      grassDark = '#338f36';
-      grassLight = '#57c059';
-      tuftTip = '#78df62';
-      tuftShadow = '#27782b';
+      grassBase = '#3e913d';
+      grassDark = '#2f7c33';
+      grassLight = '#55b350';
+      tuftTip = '#7ad463';
+      tuftShadow = '#226a27';
     }
 
     // 1. Fondo de césped
     ctx.fillStyle = grassBase;
     ctx.fillRect(wx, wy, CELL, CELL);
 
-    // 2. Ondulaciones tonales suaves dentro de la celda
-    ctx.fillStyle = patch === 1 ? grassLight : grassDark;
-    if (patch === 0 || patch === 2) {
-      ctx.fillRect(wx + 2, wy + 18, 14, 5);
-      ctx.fillRect(wx + 18, wy + 4, 12, 4);
-    } else {
-      ctx.fillRect(wx + 4, wy + 4, 12, 5);
-      ctx.fillRect(wx + 16, wy + 20, 14, 5);
-    }
+    // 2. Manchas orgánicas de luz y sombra (formas recortadas, nunca bandas
+    //    alineadas al borde de la celda).
+    const dapX = wx + 3 + ((h >> 6) % 13);
+    const dapY = wy + 3 + ((h >> 11) % 13);
+    const lit = (h >> 3) % 3 === 0;
+    ctx.fillStyle = lit ? 'rgba(136, 204, 104, 0.26)' : 'rgba(22, 80, 34, 0.22)';
+    ctx.fillRect(dapX, dapY, 12, 3);
+    ctx.fillRect(dapX + 3, dapY - 1, 6, 1);
+    ctx.fillStyle = lit ? 'rgba(168, 226, 126, 0.18)' : 'rgba(14, 58, 26, 0.17)';
+    ctx.fillRect(dapX + 2, dapY + 3, 7, 2);
 
     // Motas de hoja y sombras pequeñas: variación cromática legible sin ruido de píxel.
     const fleckX = 3 + ((h >> 8) % 25);
@@ -2952,7 +3282,7 @@ function drawGbcWalkableSurfaceTile(
     }
 
     // 4. Flores silvestres de 4 pétalos (margaritas, dientes de león, amapolas)
-    if (!isForest && !isSecret && (h % 7 === 1 || h % 11 === 3)) {
+    if (!isForest && !isSecret && (h % 19 === 1 || h % 31 === 9)) {
       const fx = wx + 8 + ((h >> 3) % 16);
       const fy = wy + 8 + ((h >> 5) % 14);
       const flowerKind = (h >> 2) % 3;
@@ -3146,28 +3476,61 @@ function drawGbcWalkableSurfaceTile(
   }
 
   // 'stone' — Terrazas y miradores tallados en roca antigua
-  ctx.fillStyle = (h & 1) === 0 ? '#788494' : '#828e9e';
+  const stoneMortar = '#4a5563';
+  ctx.fillStyle = stoneMortar;
   ctx.fillRect(wx, wy, CELL, CELL);
-  ctx.fillStyle = '#4d5968';
-  ctx.fillRect(wx, wy + 15, CELL, 2);
-  ctx.fillRect(wx + 15, wy, 2, CELL);
-  ctx.fillStyle = '#b6c2d1';
-  ctx.fillRect(wx + 2, wy + 2, 12, 2);
-  ctx.fillRect(wx + 18, wy + 18, 12, 2);
-  ctx.fillStyle = '#606c7c';
-  ctx.fillRect(wx + 2, wy + 13, 12, 2);
-  ctx.fillRect(wx + 18, wy + 29, 12, 2);
 
-  // Fisuras finas y liquen en las terrazas de piedra
-  if (h % 7 === 2) {
-    ctx.fillStyle = '#3f4a58';
-    ctx.fillRect(wx + 8 + ((h >> 5) % 14), wy + 6 + ((h >> 9) % 14), 1, 4);
-    ctx.fillRect(wx + 9 + ((h >> 5) % 14), wy + 10 + ((h >> 9) % 14), 3, 1);
+  const slabFace = ['#7c8898', '#74808f', '#828e9e'];
+  const slabHi = '#b6c2d1';
+  const slabShadow = '#4d5968';
+  const slabDeep = '#3f4a58';
+
+  const drawSlab = (px: number, py: number, pw: number, ph: number, v: number) => {
+    ctx.fillStyle = slabFace[v % 3];
+    ctx.fillRect(px, py, pw, ph);
+    // Bisel iluminado al noroeste y sombra al sureste
+    ctx.fillStyle = slabHi;
+    ctx.fillRect(px, py, pw, 1);
+    ctx.fillRect(px, py, 1, ph);
+    ctx.fillStyle = slabShadow;
+    ctx.fillRect(px, py + ph - 1, pw, 1);
+    ctx.fillRect(px + pw - 1, py, 1, ph);
+    // Desconchado de esquina en algunas lajas
+    if (v % 4 === 0) {
+      ctx.fillStyle = stoneMortar;
+      ctx.fillRect(px + pw - 2, py, 2, 1);
+      ctx.fillRect(px, py + ph - 2, 1, 2);
+    }
+    // Fisuras finas y veta interna
+    if (v % 3 === 0) {
+      ctx.fillStyle = slabDeep;
+      ctx.fillRect(px + 4, py + 5, 4, 1);
+      ctx.fillRect(px + 7, py + 6, 1, 3);
+      ctx.fillStyle = slabHi;
+      ctx.fillRect(px + 3, py + 3, 2, 1);
+    }
+  };
+
+  const stoneLayout = (h >> 8) % 3;
+  if (stoneLayout === 0) {
+    drawSlab(wx + 1, wy + 1, 14, 14, h);
+    drawSlab(wx + 17, wy + 1, 14, 14, h >> 2);
+    drawSlab(wx + 1, wy + 17, 14, 14, h >> 4);
+    drawSlab(wx + 17, wy + 17, 14, 14, h >> 6);
+  } else if (stoneLayout === 1) {
+    drawSlab(wx + 1, wy + 1, 14, 30, h >> 1);
+    drawSlab(wx + 17, wy + 1, 14, 30, h >> 5);
+  } else {
+    drawSlab(wx + 1, wy + 1, 30, 14, h >> 2);
+    drawSlab(wx + 1, wy + 17, 14, 14, h >> 4);
+    drawSlab(wx + 17, wy + 17, 14, 14, h >> 7);
   }
+
+  // Liquen y humedad en las terrazas de piedra
   if (h % 11 === 4) {
-    ctx.fillStyle = '#5f7a4a';
-    ctx.fillRect(wx + 5 + ((h >> 7) % 20), wy + 19 + ((h >> 12) % 8), 3, 1);
-    ctx.fillStyle = '#8aa86a';
+    ctx.fillStyle = 'rgba(95, 122, 74, 0.8)';
+    ctx.fillRect(wx + 5 + ((h >> 7) % 20), wy + 19 + ((h >> 12) % 8), 4, 1);
+    ctx.fillStyle = 'rgba(138, 168, 106, 0.9)';
     ctx.fillRect(wx + 6 + ((h >> 7) % 20), wy + 19 + ((h >> 12) % 8), 1, 1);
   }
 }
@@ -4069,7 +4432,7 @@ function drawPixelverseBuilding(
   ctx.fillStyle = '#7a654c';
   ctx.fillRect(bx - 4, by + bldg.h - 4, bldg.w + 8, 2);
 
-  // Helper para tejas cerámicas con biseles GBA
+  // Tejas cerámicas, pizarra, escamas góticas o paja: cursos alternos, barniz y musgo.
   const drawRoofTiles = (
     rx: number,
     ry: number,
@@ -4077,23 +4440,226 @@ function drawPixelverseBuilding(
     rHeight: number,
     shadeHex: string,
     glintHex: string,
-    tileWidth = 14
+    tileWidth = 14,
+    kind: 'ceramic' | 'slate' | 'hex' | 'thatch' = 'ceramic'
   ) => {
-    for (let row = 0; row < rHeight; row += 6) {
-      const offset = row % 12 === 0 ? 0 : Math.floor(tileWidth / 2);
-      ctx.fillStyle = shadeHex;
-      ctx.fillRect(rx, ry + row + 5, rWidth, 1);
-      for (let tileX = rx - offset; tileX < rx + rWidth; tileX += tileWidth) {
-        const visibleX = Math.max(rx + 1, tileX + 2);
-        const tileEnd = Math.min(rx + rWidth - 1, tileX + tileWidth - 2);
-        if (tileEnd > visibleX) {
-          ctx.fillStyle = glintHex;
-          ctx.fillRect(visibleX, ry + row + 1, tileEnd - visibleX, 2);
-          ctx.fillStyle = shadeHex;
-          ctx.fillRect(visibleX, ry + row + 3, tileEnd - visibleX, 1);
+    if (kind === 'thatch') {
+      const rows = Math.max(1, Math.ceil(rHeight / 3));
+      for (let row = 0; row < rows; row++) {
+        const top = ry + row * 3;
+        const t = row / rows;
+        ctx.fillStyle = row % 2 === 0 ? bldg.roofHex : shadeHex;
+        ctx.fillRect(rx, top, rWidth, 3);
+        ctx.fillStyle = t < 0.25 ? 'rgba(255, 236, 180, 0.22)' : 'rgba(70, 48, 16, 0.14)';
+        ctx.fillRect(rx + 1, top, rWidth - 2, 1);
+        for (let sx = rx + 2; sx < rx + rWidth - 2; sx += 6) {
+          const th = hashTile(sx, top) % 100;
+          if (th < 38) continue;
+          ctx.fillStyle = th > 70 ? 'rgba(255, 236, 176, 0.45)' : 'rgba(90, 62, 22, 0.4)';
+          ctx.fillRect(sx, top + 1, 2 + (th % 3), 1);
         }
       }
+      ctx.fillStyle = shadeHex;
+      ctx.fillRect(rx, ry + rHeight - 1, rWidth, 1);
+      for (let mx = rx; mx < rx + rWidth; mx += 5) {
+        const th = hashTile(mx, ry + rHeight) % 100;
+        if (th < 35) continue;
+        ctx.fillStyle = th > 60 ? glintHex : shadeHex;
+        ctx.fillRect(mx, ry + rHeight, 2, 1 + (th % 3));
+      }
+      return;
     }
+
+    const rowH = kind === 'hex' ? 5 : 6;
+    const tw = kind === 'hex' ? 10 : kind === 'slate' ? 16 : tileWidth;
+    const rows = Math.max(1, Math.ceil(rHeight / rowH));
+    for (let row = 0; row < rows; row++) {
+      const top = ry + row * rowH;
+      const hRow = Math.min(rowH, ry + rHeight - top);
+      if (hRow <= 0) break;
+      ctx.fillStyle = row % 2 === 0 ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.08)';
+      ctx.fillRect(rx, top, rWidth, hRow);
+      const offset = row % 2 === 0 ? 0 : Math.floor(tw / 2);
+      for (let tileX = rx - offset; tileX < rx + rWidth; tileX += tw) {
+        const x0 = Math.max(rx + 1, tileX + 1);
+        const x1 = Math.min(rx + rWidth - 1, tileX + tw - 1);
+        if (x1 - x0 < 3) continue;
+        const th = hashTile(tileX, top) % 100;
+        if (th > 72) {
+          ctx.fillStyle = th > 90 ? 'rgba(255, 246, 228, 0.12)' : 'rgba(0, 0, 0, 0.1)';
+          ctx.fillRect(x0, top, x1 - x0, hRow - 1);
+        }
+        if (tileX >= rx) {
+          ctx.fillStyle = shadeHex;
+          ctx.fillRect(tileX, top, 1, hRow);
+        }
+        if (kind === 'hex') {
+          ctx.fillStyle = shadeHex;
+          ctx.fillRect(x0, top + hRow - 1, Math.max(2, x1 - x0), 1);
+          ctx.fillStyle = glintHex;
+          ctx.fillRect(x0 + 1, top + 1, Math.max(1, x1 - x0 - 4), 1);
+          ctx.fillRect(Math.floor((x0 + x1) / 2), top, 1, 2);
+        } else {
+          ctx.fillStyle = glintHex;
+          ctx.fillRect(x0, top + 1, Math.max(2, x1 - x0 - 3), 1);
+          ctx.fillStyle = shadeHex;
+          ctx.fillRect(x0, top + hRow - 2, Math.max(2, x1 - x0 - 1), 1);
+        }
+        if (th > 93 && hRow >= 5) {
+          ctx.fillStyle = 'rgba(6, 10, 18, 0.22)';
+          ctx.fillRect(x0 + 2, top + 2, 2, 2);
+        }
+      }
+      ctx.fillStyle = shadeHex;
+      ctx.fillRect(rx, top + hRow - 1, rWidth, 1);
+    }
+    for (let mx = rx + 2; mx < rx + rWidth - 2; mx += 7) {
+      const th = hashTile(mx, ry + rHeight) % 100;
+      if (th < 74) continue;
+      const rise = 1 + (th % Math.max(1, Math.round(rows * 4)));
+      ctx.fillStyle = th > 90 ? 'rgba(116, 150, 86, 0.34)' : 'rgba(70, 104, 58, 0.26)';
+      ctx.fillRect(mx, ry + rHeight - rise, 2, rise);
+    }
+    ctx.fillStyle = glintHex;
+    ctx.fillRect(rx + 1, ry + 1, Math.min(rWidth - 2, 20), 1);
+    ctx.fillStyle = 'rgba(6, 10, 18, 0.34)';
+    ctx.fillRect(rx, ry + rHeight - 1, rWidth, 1);
+  };
+
+  const drawPitchedGable = (
+    gx: number,
+    gy: number,
+    gw: number,
+    gh: number,
+    fillHex: string,
+    shadeHex: string,
+    glintHex: string,
+    kind: 'ceramic' | 'slate' | 'hex' | 'thatch'
+  ) => {
+    ctx.fillStyle = '#1a140c';
+    ctx.beginPath();
+    ctx.moveTo(gx + gw / 2, gy);
+    ctx.lineTo(gx + gw + 8, gy + gh);
+    ctx.lineTo(gx - 8, gy + gh);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = fillHex;
+    ctx.beginPath();
+    ctx.moveTo(gx + gw / 2, gy + 2);
+    ctx.lineTo(gx + gw + 4, gy + gh - 1);
+    ctx.lineTo(gx - 4, gy + gh - 1);
+    ctx.closePath();
+    ctx.fill();
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(gx + gw / 2, gy + 3);
+    ctx.lineTo(gx + gw + 2, gy + gh - 2);
+    ctx.lineTo(gx - 2, gy + gh - 2);
+    ctx.closePath();
+    ctx.clip();
+    drawRoofTiles(gx - 6, gy + 4, gw + 12, gh - 6, shadeHex, glintHex, 12, kind);
+    ctx.restore();
+    ctx.fillStyle = '#5a3a1c';
+    ctx.fillRect(gx + gw / 2 - 4, gy - 2, 8, 5);
+    ctx.fillStyle = '#8a6238';
+    ctx.fillRect(gx + gw / 2 - 3, gy - 1, 6, 2);
+  };
+
+  const drawStoneCourses = (sx: number, sy: number, sw: number, sh: number) => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(sx, sy, sw, sh);
+    ctx.clip();
+    for (let row = 0, ry = sy; ry < sy + sh; row++, ry += 8) {
+      const odd = row % 2;
+      for (let cx = sx - (odd ? 6 : 0); cx < sx + sw; cx += 14) {
+        const th = hashTile(cx, ry) % 100;
+        const pw = 12 + (th % 4);
+        ctx.fillStyle = th > 70 ? '#c4b49a' : th > 40 ? '#b3a388' : '#9e9078';
+        ctx.fillRect(cx + 1, ry + 1, pw, 6);
+        ctx.fillStyle = 'rgba(255, 244, 220, 0.22)';
+        ctx.fillRect(cx + 1, ry + 1, pw - 2, 1);
+        ctx.fillStyle = 'rgba(40, 32, 22, 0.28)';
+        ctx.fillRect(cx + 1, ry + 6, pw, 1);
+        ctx.fillRect(cx + pw, ry + 1, 1, 6);
+      }
+    }
+    ctx.restore();
+  };
+
+  const drawHangingLantern = (lx: number, ly: number) => {
+    const flicker = reducedMotion ? 0.9 : 0.82 + Math.sin(elapsed * 5.4 + lx) * 0.1;
+    ctx.fillStyle = '#4a3420';
+    ctx.fillRect(lx - 8, ly - 2, 10, 2);
+    ctx.fillRect(lx + 1, ly, 2, 6);
+    ctx.fillStyle = '#6b5a48';
+    ctx.fillRect(lx - 3, ly + 6, 8, 2);
+    ctx.fillStyle = `rgba(255, 196, 96, ${flicker.toFixed(2)})`;
+    ctx.fillRect(lx - 2, ly + 8, 6, 7);
+    ctx.fillStyle = '#fff3c4';
+    ctx.fillRect(lx - 1, ly + 9, 3, 4);
+    ctx.fillStyle = '#3a2a18';
+    ctx.fillRect(lx - 3, ly + 15, 8, 2);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(lx + 1, ly + 11, 1, lx + 1, ly + 11, 22);
+    g.addColorStop(0, `rgba(255, 186, 90, ${(0.32 * flicker).toFixed(2)})`);
+    g.addColorStop(1, 'rgba(255, 186, 90, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(lx - 22, ly - 8, 46, 46);
+    ctx.restore();
+  };
+
+  // Grano de fachada: revoque, sillería o tablón con vetas de lluvia y
+  // oscurecimiento de contacto en el zócalo. Se recorta al paño del muro.
+  const drawFacadeGrain = (
+    fx: number,
+    fy: number,
+    fw: number,
+    fh: number,
+    kind: 'plaster' | 'stone' | 'wood'
+  ) => {
+    if (fw <= 0 || fh <= 0) return;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(fx, fy, fw, fh);
+    ctx.clip();
+
+    const grainStep = kind === 'stone' ? 5 : 6;
+    for (let gy = fy + 2; gy < fy + fh - 2; gy += grainStep) {
+      for (let gx = fx + 2; gx < fx + fw - 2; gx += grainStep) {
+        const th = hashTile(gx * 3, gy) % 100;
+        if (th < 58) continue;
+        ctx.fillStyle = th > 84 ? 'rgba(255, 250, 236, 0.09)' : 'rgba(34, 28, 20, 0.08)';
+        ctx.fillRect(gx, gy, th > 93 ? 2 : 1, 1);
+      }
+    }
+
+    // Vetas de lluvia que bajan del alero y se desvanecen.
+    for (let sx = fx + 5; sx < fx + fw - 4; sx += 13) {
+      const th = hashTile(sx, fy + 1) % 100;
+      if (th < 62) continue;
+      const len = 5 + (th % 17);
+      ctx.fillStyle = kind === 'wood' ? 'rgba(40, 26, 14, 0.1)' : 'rgba(40, 34, 26, 0.07)';
+      ctx.fillRect(sx, fy + 2, 1, Math.min(len, fh - 4));
+    }
+
+    // Contacto con el suelo: banda de oclusión y humedad ascendente.
+    ctx.fillStyle = 'rgba(22, 18, 12, 0.16)';
+    ctx.fillRect(fx, fy + fh - 5, fw, 5);
+    const dampH = Math.min(7, Math.max(3, Math.round(fh * 0.1)));
+    for (let sx = fx + 2; sx < fx + fw - 2; sx += 6) {
+      const th = hashTile(sx, fy + fh) % 100;
+      if (th < 56) continue;
+      ctx.fillStyle =
+        kind === 'wood' && th > 82
+          ? 'rgba(78, 96, 52, 0.26)'
+          : th > 88
+            ? 'rgba(74, 92, 52, 0.2)'
+            : 'rgba(48, 38, 24, 0.18)';
+      ctx.fillRect(sx, fy + fh - 1 - (th % dampH), 2, 1 + (th % dampH));
+    }
+    ctx.restore();
   };
 
   if (style === 'chrono-dome') {
@@ -4131,7 +4697,7 @@ function drawPixelverseBuilding(
     ctx.fillStyle = bldg.roofHex;
     ctx.fillRect(bx + 10, by + 6, bldg.w - 20, 18);
     ctx.fillRect(bx + 28, by - 8, bldg.w - 56, 14);
-    drawRoofTiles(bx + 12, by + 6, bldg.w - 24, 14, bldg.roofShadeHex, '#67e8f9', 18);
+    drawRoofTiles(bx + 12, by + 6, bldg.w - 24, 14, bldg.roofShadeHex, '#67e8f9', 18, 'slate');
 
     // Meridiano astronómico de latón y lente ocular del Cronoscopio
     const cx = Math.round(bx + bldg.w / 2);
@@ -4172,6 +4738,7 @@ function drawPixelverseBuilding(
     ctx.fillRect(bx - 2, by + 24, bldg.w + 4, bldg.h - 22);
     ctx.fillStyle = bldg.wallHex;
     ctx.fillRect(bx, by + 26, bldg.w, bldg.h - 26);
+    drawStoneCourses(bx + 8, by + 26, bldg.w - 16, bldg.h - 26);
 
     // Entramado de vigas de madera
     ctx.fillStyle = '#5c3115';
@@ -4193,7 +4760,7 @@ function drawPixelverseBuilding(
     ctx.fillRect(bx - 8, by + 4, bldg.w + 16, 24);
     ctx.fillStyle = bldg.roofHex;
     ctx.fillRect(bx - 6, by + 6, bldg.w + 12, 20);
-    drawRoofTiles(bx - 4, by + 6, bldg.w + 8, 16, bldg.roofShadeHex, '#5eead4', 18);
+    drawRoofTiles(bx - 4, by + 6, bldg.w + 8, 16, bldg.roofShadeHex, '#e8c878', 16, 'thatch');
 
     // Tragaluz del taller
     ctx.fillStyle = '#060a12';
@@ -4210,6 +4777,7 @@ function drawPixelverseBuilding(
     ctx.fillRect(bx - 4, by + 18, bldg.w + 8, bldg.h - 16);
     ctx.fillStyle = bldg.wallHex;
     ctx.fillRect(bx - 2, by + 20, bldg.w + 4, bldg.h - 20);
+    drawStoneCourses(bx - 2, by + 20, bldg.w + 4, bldg.h - 20);
 
     // Columnas frontales de sillería estriada
     ctx.fillStyle = '#94a3b8';
@@ -4226,18 +4794,21 @@ function drawPixelverseBuilding(
     ctx.fillRect(bx + 6, by + bldg.h - 8, 18, 4);
     ctx.fillRect(bx + bldg.w - 24, by + bldg.h - 8, 18, 4);
 
-    // Frontón clásico triangular
-    ctx.fillStyle = '#060a12';
-    ctx.fillRect(bx - 8, by + 4, bldg.w + 16, 18);
-    ctx.fillRect(bx + 18, by - 6, bldg.w - 36, 12);
-    ctx.fillStyle = bldg.roofHex;
-    ctx.fillRect(bx - 6, by + 6, bldg.w + 12, 14);
-    ctx.fillRect(bx + 20, by - 4, bldg.w - 40, 10);
-    drawRoofTiles(bx - 4, by + 6, bldg.w + 8, 12, bldg.roofShadeHex, '#fbbf24', 16);
+    drawPitchedGable(
+      bx - 6,
+      by - 10,
+      bldg.w + 12,
+      32,
+      bldg.roofHex,
+      bldg.roofShadeHex,
+      '#d4deea',
+      'slate'
+    );
 
-    // Friso de circuitos dorados en el dintel
-    ctx.fillStyle = '#fde047';
+    ctx.fillStyle = '#c4b08a';
     ctx.fillRect(bx + 4, by + 16, bldg.w - 8, 3);
+    drawHangingLantern(bx + 6, by + 32);
+    drawHangingLantern(bx + bldg.w - 2, by + 32);
   } else if (style === 'museum-hall') {
     // ----------------------------------------------------
     // MUSEO VIVIENTE DE LOS 70 (GALERÍA NEOCLÁSICA RETROFUTURISTA)
@@ -4246,6 +4817,7 @@ function drawPixelverseBuilding(
     ctx.fillRect(bx - 4, by + 18, bldg.w + 8, bldg.h - 16);
     ctx.fillStyle = bldg.wallHex;
     ctx.fillRect(bx - 2, by + 20, bldg.w + 4, bldg.h - 20);
+    drawStoneCourses(bx - 2, by + 20, bldg.w + 4, bldg.h - 20);
 
     // Columnata de mármol
     ctx.fillStyle = '#94a3b8';
@@ -4256,13 +4828,25 @@ function drawPixelverseBuilding(
       ctx.fillStyle = '#94a3b8';
     }
 
-    // Tejado de pizarra con claraboya
-    ctx.fillStyle = '#060a12';
-    ctx.fillRect(bx - 8, by + 2, bldg.w + 16, 18);
-    ctx.fillRect(bx + 24, by - 10, bldg.w - 48, 14);
-    ctx.fillStyle = bldg.roofHex;
-    ctx.fillRect(bx - 6, by + 4, bldg.w + 12, 14);
-    drawRoofTiles(bx - 4, by + 4, bldg.w + 8, 12, bldg.roofShadeHex, '#bae6fd', 16);
+    drawPitchedGable(
+      bx - 6,
+      by - 12,
+      bldg.w + 12,
+      34,
+      bldg.roofHex,
+      bldg.roofShadeHex,
+      '#f4c4b0',
+      'hex'
+    );
+    ctx.fillStyle = '#3a342c';
+    ctx.fillRect(bx + bldg.w - 28, by - 36, 18, 28);
+    drawRoofTiles(bx + bldg.w - 32, by - 48, 26, 14, bldg.roofShadeHex, '#f4c4b0', 10, 'hex');
+    ctx.fillStyle = '#c4b08a';
+    ctx.fillRect(bx + bldg.w - 24, by - 22, 10, 12);
+    ctx.fillStyle = '#fde047';
+    ctx.fillRect(bx + bldg.w - 22, by - 20, 6, 8);
+    drawHangingLantern(bx + 8, by + 32);
+    drawHangingLantern(bx + bldg.w - 4, by + 32);
 
     // Friso de 4 bandas cromáticas de los 70 (Cian, Amarillo, Naranja, Verde)
     const frieze = ['#00f3ff', '#facc15', '#f97316', '#22c55e'];
@@ -4390,88 +4974,120 @@ function drawPixelverseBuilding(
     ctx.fillStyle = 'rgba(148, 64, 32, 0.35)';
     ctx.fillRect(bx + bldg.w - 8, by + 60, 8, 20);
   } else {
-    // ----------------------------------------------------
-    // CASA DEL CRONISTA / ALDEA DE LOS ORÍGENES (COTTAGE GBA)
-    // Mampostería cálida, teja terracota con alero, chimenea y jardineras
-    // ----------------------------------------------------
-    // Chimenea de piedra con humo
-    ctx.fillStyle = '#060a12';
-    ctx.fillRect(bx + 20, by - 18, 12, 22);
-    ctx.fillStyle = '#78350f';
-    ctx.fillRect(bx + 22, by - 16, 8, 18);
-    ctx.fillStyle = '#d8be88';
-    ctx.fillRect(bx + 19, by - 19, 14, 3);
-    // Humo blanco
+    // Casa de aldea: muros de mampostería, entramado de troncos y tejado de paja.
     const puff = Math.floor(elapsed * 2) % 3;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
-    ctx.fillRect(bx + 23 + puff * 2, by - 25, 6, 4);
+    ctx.fillStyle = '#3f3830';
+    ctx.fillRect(bx + 18, by - 10, 14, 28);
+    ctx.fillStyle = '#8a8376';
+    ctx.fillRect(bx + 20, by - 8, 10, 24);
+    for (let cy = by - 6; cy < by + 16; cy += 6) {
+      ctx.fillStyle = 'rgba(40, 34, 28, 0.35)';
+      ctx.fillRect(bx + 20, cy, 10, 1);
+    }
+    ctx.fillStyle = '#5c4630';
+    ctx.fillRect(bx + 18, by - 12, 14, 3);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.42)';
+    ctx.fillRect(bx + 22 + puff * 2, by - 20, 6, 4);
 
-    // Fachada principal
-    ctx.fillStyle = '#060a12';
-    ctx.fillRect(bx - 2, by + 24, bldg.w + 4, bldg.h - 22);
-    ctx.fillStyle = bldg.wallHex;
-    ctx.fillRect(bx, by + 26, bldg.w, bldg.h - 26);
+    ctx.fillStyle = '#1a140c';
+    ctx.fillRect(bx - 2, by + 22, bldg.w + 4, bldg.h - 20);
+    ctx.fillStyle = '#b7a88c';
+    ctx.fillRect(bx, by + 24, bldg.w, bldg.h - 24);
+    drawStoneCourses(bx, by + 24, bldg.w, bldg.h - 24);
+    drawFacadeGrain(bx, by + 24, bldg.w, bldg.h - 24, 'stone');
 
-    // Sillares esquineros (quoins)
-    ctx.fillStyle = '#bca982';
-    for (let qy = by + 28; qy < by + bldg.h - 10; qy += 12) {
-      ctx.fillRect(bx, qy, 8, 5);
-      ctx.fillRect(bx + bldg.w - 8, qy, 8, 5);
-      ctx.fillRect(bx, qy + 6, 5, 5);
-      ctx.fillRect(bx + bldg.w - 5, qy + 6, 5, 5);
+    ctx.fillStyle = '#5c3a1e';
+    ctx.fillRect(bx, by + 24, 8, bldg.h - 24);
+    ctx.fillRect(bx + bldg.w - 8, by + 24, 8, bldg.h - 24);
+    ctx.fillStyle = '#8a5a2c';
+    ctx.fillRect(bx + 1, by + 24, 2, bldg.h - 24);
+    ctx.fillRect(bx + bldg.w - 7, by + 24, 2, bldg.h - 24);
+    for (let qy = by + 28; qy < by + bldg.h - 8; qy += 10) {
+      ctx.fillStyle = 'rgba(30, 18, 8, 0.4)';
+      ctx.fillRect(bx + 1, qy, 6, 2);
+      ctx.fillRect(bx + bldg.w - 7, qy + 4, 6, 2);
     }
 
-    // Tejado a dos aguas de terracota
-    ctx.fillStyle = '#060a12';
-    ctx.fillRect(bx - 8, by + 6, bldg.w + 16, 22);
-    ctx.fillRect(bx + 24, by - 4, bldg.w - 48, 12);
-    ctx.fillStyle = bldg.roofHex;
-    ctx.fillRect(bx - 6, by + 8, bldg.w + 12, 18);
-    ctx.fillRect(bx + 26, by - 2, bldg.w - 52, 10);
-    drawRoofTiles(bx - 4, by + 8, bldg.w + 8, 16, bldg.roofShadeHex, '#fca5a5', 14);
-
-    // Sombra de caída bajo el alero del tejado
-    ctx.fillStyle = 'rgba(7, 12, 20, 0.35)';
-    ctx.fillRect(bx, by + 26, bldg.w, 4);
+    drawPitchedGable(
+      bx - 4,
+      by - 8,
+      bldg.w + 8,
+      34,
+      bldg.roofHex,
+      bldg.roofShadeHex,
+      '#f3dd9a',
+      'thatch'
+    );
+    ctx.fillStyle = '#6b4a24';
+    ctx.fillRect(bx + 28, by - 12, bldg.w - 56, 6);
+    ctx.fillStyle = '#4a3218';
+    for (let lx = bx + 34; lx < bx + bldg.w - 34; lx += 14) ctx.fillRect(lx, by - 14, 3, 8);
+    ctx.fillStyle = 'rgba(7, 12, 20, 0.38)';
+    ctx.fillRect(bx, by + 24, bldg.w, 5);
+    drawHangingLantern(bx + 12, by + 34);
+    drawHangingLantern(bx + bldg.w - 6, by + 34);
+    for (const fx of [bx + 8, bx + 28, bx + bldg.w - 36, bx + bldg.w - 16]) {
+      ctx.fillStyle = '#2d6d34';
+      ctx.fillRect(fx, by + bldg.h - 8, 10, 8);
+      ctx.fillStyle = '#65ad4d';
+      ctx.fillRect(fx + 1, by + bldg.h - 12, 8, 6);
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(fx + 2, by + bldg.h - 14, 2, 2);
+      ctx.fillStyle = '#fde047';
+      ctx.fillRect(fx + 6, by + bldg.h - 13, 2, 2);
+    }
   }
 
-  // Ventanas artesanales con cristales reflectantes y jardineras florales
   const drawGbaWindow = (wx: number, wy: number, glowHex: string, hasFlowerBox = false) => {
-    // Marco exterior con dintel
-    ctx.fillStyle = '#060a12';
-    ctx.fillRect(wx - 1, wy - 2, 24, 22);
-    ctx.fillRect(wx + 1, wy - 4, 20, 2);
-
-    // Dintel de madera / piedra
-    ctx.fillStyle = style === 'ruins-sanctuary' || style === 'museum-hall' ? '#d8be88' : '#78350f';
-    ctx.fillRect(wx, wy - 3, 22, 2);
-
-    // Vidrio interior cálido
-    ctx.fillStyle = glowHex;
-    ctx.fillRect(wx + 1, wy, 20, 18);
-
-    // Parteluces en cruz
-    ctx.fillStyle = '#060a12';
-    ctx.fillRect(wx + 10, wy, 2, 18);
-    ctx.fillRect(wx + 1, wy + 8, 20, 2);
-
-    // Destellos diagonales de vidrio
+    const gothic = style === 'ruins-sanctuary' || style === 'museum-hall';
+    ctx.fillStyle = '#1a140c';
+    if (gothic) {
+      ctx.fillRect(wx - 2, wy + 6, 26, 18);
+      ctx.beginPath();
+      ctx.moveTo(wx - 2, wy + 8);
+      ctx.quadraticCurveTo(wx + 11, wy - 10, wx + 24, wy + 8);
+      ctx.lineTo(wx + 24, wy + 8);
+      ctx.fill();
+      ctx.fillStyle = '#c4b08a';
+      ctx.fillRect(wx, wy + 6, 22, 16);
+      ctx.beginPath();
+      ctx.moveTo(wx, wy + 8);
+      ctx.quadraticCurveTo(wx + 11, wy - 6, wx + 22, wy + 8);
+      ctx.fill();
+      ctx.fillStyle = glowHex;
+      ctx.fillRect(wx + 2, wy + 8, 18, 12);
+      ctx.beginPath();
+      ctx.moveTo(wx + 2, wy + 9);
+      ctx.quadraticCurveTo(wx + 11, wy - 2, wx + 20, wy + 9);
+      ctx.fill();
+      ctx.fillStyle = '#3a2a18';
+      ctx.fillRect(wx + 10, wy + 2, 2, 18);
+      ctx.fillRect(wx + 2, wy + 12, 18, 1);
+    } else {
+      ctx.fillRect(wx - 1, wy - 2, 24, 22);
+      ctx.fillStyle = '#6b3c1b';
+      ctx.fillRect(wx, wy - 3, 22, 2);
+      ctx.fillStyle = glowHex;
+      ctx.fillRect(wx + 1, wy, 20, 18);
+      ctx.fillStyle = '#2a1a10';
+      ctx.fillRect(wx + 10, wy, 2, 18);
+      ctx.fillRect(wx + 1, wy + 8, 20, 2);
+    }
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(wx + 3, wy + 2, 4, 2);
-    ctx.fillRect(wx + 13, wy + 2, 4, 2);
-
-    // Jardinera con flores bajo la ventana
+    ctx.fillRect(wx + 3, wy + 3, 4, 2);
+    ctx.fillRect(wx + 13, wy + 3, 3, 2);
     if (hasFlowerBox) {
       ctx.fillStyle = '#5c3115';
-      ctx.fillRect(wx, wy + 19, 22, 5);
-      ctx.fillStyle = '#22c55e';
-      ctx.fillRect(wx + 1, wy + 17, 20, 3);
-      // Flores
+      ctx.fillRect(wx - 1, wy + 19, 24, 6);
+      ctx.fillStyle = '#3f8a41';
+      ctx.fillRect(wx, wy + 17, 22, 3);
       ctx.fillStyle = '#ef4444';
       ctx.fillRect(wx + 3, wy + 16, 3, 2);
-      ctx.fillRect(wx + 15, wy + 16, 3, 2);
+      ctx.fillRect(wx + 16, wy + 16, 3, 2);
       ctx.fillStyle = '#fde047';
-      ctx.fillRect(wx + 9, wy + 16, 3, 2);
+      ctx.fillRect(wx + 9, wy + 15, 3, 3);
+      ctx.fillStyle = '#f9a8d4';
+      ctx.fillRect(wx + 6, wy + 16, 2, 2);
     }
   };
 
@@ -4482,35 +5098,49 @@ function drawPixelverseBuilding(
     drawGbaWindow(bx + bldg.w - 38, by + 40, winGlow, isCottage);
   }
 
-  // Puerta de entrada con dintel de forja, escalón de piedra y pomo de latón
   const dLeft = Math.round(bldg.doorX - 16);
-  // Escalón de acceso
-  ctx.fillStyle = '#060a12';
+  ctx.fillStyle = '#1a140c';
   ctx.fillRect(dLeft - 4, by + bldg.h - 38, 40, 42);
-  ctx.fillStyle = '#cbd5e1';
-  ctx.fillRect(dLeft - 2, by + bldg.h - 1, 36, 5);
-  ctx.fillStyle = '#94a3b8';
-  ctx.fillRect(dLeft - 2, by + bldg.h + 2, 36, 2);
+  ctx.fillStyle = '#9a8f7a';
+  ctx.fillRect(dLeft - 4, by + bldg.h - 1, 40, 6);
+  ctx.fillStyle = '#cfc3aa';
+  ctx.fillRect(dLeft - 3, by + bldg.h - 1, 38, 2);
+  ctx.fillStyle = '#7a7060';
+  ctx.fillRect(dLeft - 3, by + bldg.h + 3, 38, 1);
 
-  // Marco de la puerta
-  ctx.fillStyle =
-    style === 'ruins-sanctuary' || style === 'museum-hall'
-      ? '#d8be88'
-      : style === 'arcade-hall'
-        ? '#8a949b'
-        : '#6b3c1b';
-  ctx.fillRect(dLeft - 2, by + bldg.h - 36, 36, 36);
+  const gothicDoor = style === 'ruins-sanctuary' || style === 'museum-hall';
+  ctx.fillStyle = gothicDoor ? '#c4b08a' : style === 'arcade-hall' ? '#8a949b' : '#6b3c1b';
+  ctx.fillRect(dLeft - 3, by + bldg.h - 38, 38, 38);
+  if (gothicDoor) {
+    ctx.beginPath();
+    ctx.moveTo(dLeft - 3, by + bldg.h - 24);
+    ctx.quadraticCurveTo(dLeft + 16, by + bldg.h - 52, dLeft + 35, by + bldg.h - 24);
+    ctx.fill();
+  }
 
-  // Puerta de madera maciza (persiana metálica en el salón arcade)
   const isArcadeDoor = style === 'arcade-hall';
-  ctx.fillStyle = isArcadeDoor ? '#3f474c' : '#45230e';
-  ctx.fillRect(dLeft, by + bldg.h - 34, 32, 34);
-  // Tablas y molduras de la puerta
-  ctx.fillStyle = isArcadeDoor ? '#5b666d' : '#733e1c';
-  ctx.fillRect(dLeft + 3, by + bldg.h - 30, 11, 12);
-  ctx.fillRect(dLeft + 18, by + bldg.h - 30, 11, 12);
-  ctx.fillRect(dLeft + 3, by + bldg.h - 14, 11, 13);
-  ctx.fillRect(dLeft + 18, by + bldg.h - 14, 11, 13);
+  ctx.fillStyle = isArcadeDoor ? '#3f474c' : '#5a3214';
+  ctx.fillRect(dLeft, by + bldg.h - 36, 32, 36);
+  if (gothicDoor) {
+    ctx.beginPath();
+    ctx.moveTo(dLeft, by + bldg.h - 24);
+    ctx.quadraticCurveTo(dLeft + 16, by + bldg.h - 48, dLeft + 32, by + bldg.h - 24);
+    ctx.fill();
+  }
+  ctx.fillStyle = isArcadeDoor ? '#5b666d' : '#7a4620';
+  for (let px = dLeft + 2; px < dLeft + 30; px += 6) {
+    ctx.fillRect(px, by + bldg.h - 32, 4, 30);
+    ctx.fillStyle = 'rgba(30, 16, 6, 0.35)';
+    ctx.fillRect(px + 4, by + bldg.h - 32, 1, 30);
+    ctx.fillStyle = isArcadeDoor ? '#5b666d' : '#7a4620';
+  }
+  ctx.fillStyle = '#3a2410';
+  ctx.fillRect(dLeft + 15, by + bldg.h - 32, 2, 30);
+  ctx.fillStyle = '#c9b07a';
+  ctx.fillRect(dLeft + 4, by + bldg.h - 22, 3, 3);
+  ctx.fillRect(dLeft + 25, by + bldg.h - 22, 3, 3);
+  ctx.fillRect(dLeft + 4, by + bldg.h - 10, 3, 3);
+  ctx.fillRect(dLeft + 25, by + bldg.h - 10, 3, 3);
   if (isArcadeDoor) {
     // Lama de persiana y luz cálida escapándose por la rendija inferior
     ctx.fillStyle = '#2c3337';
@@ -4599,31 +5229,67 @@ export function drawCastleCorruptoExterior(
   ctx.arc(0, -90, 180 * auraPulse, 0, Math.PI * 2);
   ctx.fill();
 
-  // 2. Gran cuerpo central de la fortaleza (basalto negro y piedra milenaria)
-  ctx.fillStyle = '#090710';
-  ctx.fillRect(-140, -100, 280, 160);
-  ctx.fillStyle = '#161224';
-  ctx.fillRect(-136, -96, 272, 152);
-
-  // Sillares y bloques de muralla
-  ctx.fillStyle = '#261f38';
-  for (let row = -90; row < 50; row += 16) {
-    for (let col = -130; col < 130; col += 32) {
-      const shift = ((row + 90) / 16) % 2 === 0 ? 0 : 16;
-      ctx.fillRect(col + shift, row, 28, 2);
+  const drawCastleMasonry = (x: number, y: number, w: number, h: number) => {
+    ctx.fillStyle = '#2c3038';
+    ctx.fillRect(x, y, w, h);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+    for (let row = 0, ry = y; ry < y + h; row++, ry += 8) {
+      const odd = row % 2;
+      for (let cx = x - (odd ? 8 : 0); cx < x + w; cx += 16) {
+        const th = ((cx * 13 + ry * 7) >>> 0) % 100;
+        ctx.fillStyle = th > 72 ? '#8a909a' : th > 40 ? '#6e7580' : '#5a616c';
+        ctx.fillRect(cx + 1, ry + 1, 14, 6);
+        ctx.fillStyle = 'rgba(220, 226, 234, 0.18)';
+        ctx.fillRect(cx + 1, ry + 1, 12, 1);
+        ctx.fillStyle = 'rgba(12, 10, 18, 0.28)';
+        ctx.fillRect(cx + 1, ry + 6, 14, 1);
+      }
     }
+    ctx.restore();
+    ctx.fillStyle = 'rgba(120, 70, 180, 0.12)';
+    ctx.fillRect(x, y, w, h);
+  };
+
+  const drawConeTurret = (cx: number, topY: number, radius: number, height: number) => {
+    for (let i = 0; i < height; i += 3) {
+      const t = i / height;
+      const rw = Math.max(3, radius * (1 - t));
+      ctx.fillStyle = i % 2 === 0 ? '#8a4324' : '#6b3018';
+      ctx.fillRect(cx - rw, topY + i, rw * 2, 3);
+      ctx.fillStyle = 'rgba(255, 190, 140, 0.16)';
+      ctx.fillRect(cx - rw + 1, topY + i, Math.max(1, rw * 0.55), 1);
+      ctx.fillStyle = '#4a1c0c';
+      for (let tx = cx - rw + 2; tx < cx + rw - 2; tx += 6) {
+        ctx.fillRect(tx, topY + i, 1, 3);
+      }
+    }
+    ctx.fillStyle = '#3a2214';
+    ctx.fillRect(cx - 2, topY - 6, 4, 8);
+    ctx.fillStyle = '#c084fc';
+    ctx.fillRect(cx - 1, topY - 8, 2, 3);
+  };
+
+  // Cuerpo central de sillería gris con tinte de corrupción
+  ctx.fillStyle = '#141018';
+  ctx.fillRect(-144, -100, 288, 164);
+  drawCastleMasonry(-140, -96, 280, 156);
+  ctx.fillStyle = '#4a5560';
+  for (let ax = -136; ax < 136; ax += 16) {
+    ctx.fillRect(ax, -110, 10, 14);
   }
 
-  // 3. Torre Central de la Corona (Keep)
-  ctx.fillStyle = '#090710';
-  ctx.fillRect(-60, -170, 120, 80);
-  ctx.fillStyle = '#1a152b';
-  ctx.fillRect(-56, -166, 112, 74);
-  // Almenas de la torre central
-  ctx.fillStyle = '#2d2448';
-  for (let ax = -56; ax < 56; ax += 18) {
-    ctx.fillRect(ax, -182, 12, 14);
+  // Keep central
+  ctx.fillStyle = '#141018';
+  ctx.fillRect(-64, -176, 128, 86);
+  drawCastleMasonry(-60, -170, 120, 78);
+  ctx.fillStyle = '#4a5560';
+  for (let ax = -56; ax < 56; ax += 16) {
+    ctx.fillRect(ax, -184, 10, 14);
   }
+  drawConeTurret(0, -248, 42, 68);
 
   // Ventanal gótico de la cima iluminado con fulgor violeta (despacho del trono)
   const winGlow = reducedMotion ? 0.7 : 0.5 + Math.sin(elapsed * 4) * 0.4;
@@ -4647,36 +5313,42 @@ export function drawCastleCorruptoExterior(
 
   // 4. Torres centinelas izquierda y derecha
   const drawTower = (tx: number) => {
-    ctx.fillStyle = '#090710';
-    ctx.fillRect(tx - 36, -140, 72, 170);
-    ctx.fillStyle = '#1e1830';
-    ctx.fillRect(tx - 32, -136, 64, 162);
-    // Almenas
-    ctx.fillStyle = '#32284f';
-    for (let ax = tx - 32; ax < tx + 32; ax += 16) {
-      ctx.fillRect(ax, -150, 10, 12);
+    ctx.fillStyle = '#141018';
+    ctx.fillRect(tx - 38, -140, 76, 174);
+    drawCastleMasonry(tx - 34, -136, 68, 166);
+    ctx.fillStyle = '#4a5560';
+    for (let ax = tx - 32; ax < tx + 32; ax += 14) {
+      ctx.fillRect(ax, -150, 8, 12);
     }
-    // Tronera / aspillera vertical con luz violeta
-    ctx.fillStyle = '#090710';
+    drawConeTurret(tx, -214, 28, 64);
+    ctx.fillStyle = '#141018';
     ctx.fillRect(tx - 4, -90, 8, 30);
     ctx.fillStyle = '#a855f7';
     ctx.fillRect(tx - 2, -88, 4, 26);
+    ctx.fillStyle = '#090710';
+    ctx.fillRect(tx - 10, -50, 8, 10);
+    ctx.fillRect(tx + 4, -50, 8, 10);
+    ctx.fillStyle = `rgba(192, 132, 252, ${winGlow})`;
+    ctx.fillRect(tx - 8, -48, 4, 6);
+    ctx.fillRect(tx + 6, -48, 4, 6);
   };
   drawTower(-140);
   drawTower(140);
 
-  // 5. Portón y Rastrillo de entrada
-  ctx.fillStyle = '#090710';
+  ctx.fillStyle = '#3a342c';
+  ctx.fillRect(-48, -8, 96, 16);
+  ctx.fillStyle = '#c4b08a';
+  ctx.fillRect(-46, -6, 92, 4);
+  ctx.fillStyle = '#141018';
   ctx.beginPath();
-  ctx.arc(0, 10, 36, Math.PI, 0);
-  ctx.lineTo(36, 60);
-  ctx.lineTo(-36, 60);
+  ctx.arc(0, 18, 38, Math.PI, 0);
+  ctx.lineTo(38, 60);
+  ctx.lineTo(-38, 60);
   ctx.closePath();
   ctx.fill();
-
-  ctx.fillStyle = '#1a1329';
+  ctx.fillStyle = '#2a2438';
   ctx.beginPath();
-  ctx.arc(0, 12, 32, Math.PI, 0);
+  ctx.arc(0, 20, 32, Math.PI, 0);
   ctx.lineTo(32, 60);
   ctx.lineTo(-32, 60);
   ctx.closePath();
@@ -4979,6 +5651,178 @@ function drawAmbientIslandLife(
   ctx.restore();
 }
 
+/** Mancha radial suave en coordenadas de mundo para dar volumen al suelo. */
+function groundHalo(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  rx: number,
+  ry: number,
+  rgb: string,
+  alpha: number
+): void {
+  if (rx <= 0 || ry <= 0 || alpha <= 0.003) return;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(1, Math.max(0.15, ry / rx));
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+  g.addColorStop(0, `rgba(${rgb}, ${alpha.toFixed(3)})`);
+  g.addColorStop(0.6, `rgba(${rgb}, ${(alpha * 0.5).toFixed(3)})`);
+  g.addColorStop(1, `rgba(${rgb}, 0)`);
+  ctx.fillStyle = g;
+  ctx.fillRect(-rx, -rx, rx * 2, rx * 2);
+  ctx.restore();
+}
+
+/**
+ * LAVADO DE SUELO POR SECTOR
+ * Se dibuja una sola vez por rectángulo caminable (no por celda), así que la
+ * textura atraviesa las juntas de 32 px y desaparece la lectura de tablero.
+ * Añade volumen de luz/sombra, grano mineral y ondulaciones eólicas continuas.
+ */
+function drawOriginGroundDressing(
+  ctx: CanvasRenderingContext2D,
+  camX: number,
+  camY: number,
+  vw: number,
+  vh: number,
+  southShortcutActive: boolean,
+  glitchTrailCleared: boolean
+): void {
+  for (const r of ISLAND_WALKABLE_RECTS) {
+    if (r.requiresCondition === 'south-shortcut' && !southShortcutActive) continue;
+    if (r.requiresCondition === 'garganta-bridge' && !glitchTrailCleared) continue;
+    const surface = r.surface;
+    const isSand = surface === 'sand';
+    const isCobble = surface === 'cobble';
+    const isGrass =
+      surface === 'grass' || surface === 'circuit' || surface === 'secret-grass';
+    if (!isSand && !isCobble && !isGrass) continue;
+    if (!isWorldBoxVisible(r.x, r.y, r.w, r.h, camX, camY, vw, vh)) continue;
+
+    const x0 = Math.max(r.x, camX - 8);
+    const y0 = Math.max(r.y, camY - 8);
+    const x1 = Math.min(r.x + r.w, camX + vw + 8);
+    const y1 = Math.min(r.y + r.h, camY + vh + 8);
+    if (x1 <= x0 || y1 <= y0) continue;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(r.x, r.y, r.w, r.h);
+    ctx.clip();
+
+    if (isGrass) {
+      // Grandes claros de luz y bolsas de sombra entre el follaje.
+      const hx0 = Math.floor(x0 / 208) * 208;
+      const hy0 = Math.floor(y0 / 208) * 208;
+      for (let hy = hy0; hy < y1 + 208; hy += 208) {
+        for (let hx = hx0; hx < x1 + 208; hx += 208) {
+          const th = hashTile(hx >> 3, hy >> 3);
+          if (th % 3 === 0) continue;
+          const px = hx + 40 + (th % 96);
+          const py = hy + 34 + ((th >> 7) % 92);
+          const rad = 62 + ((th >> 3) % 54);
+          if (th & 1) {
+            groundHalo(ctx, px, py, rad, rad * 0.62, '168, 214, 112', 0.11);
+          } else {
+            groundHalo(ctx, px, py, rad, rad * 0.58, '16, 62, 34', 0.13);
+          }
+        }
+      }
+
+      // Sombra de matas y transición de claros secos.
+      for (let gy = Math.floor(y0 / 37) * 37; gy < y1; gy += 37) {
+        for (let gx = Math.floor(x0 / 37) * 37; gx < x1; gx += 37) {
+          const th = hashTile(gx, gy);
+          if (th % 10 < 7) continue;
+          const px = gx + (th % 9);
+          const py = gy + ((th >> 4) % 9);
+          ctx.fillStyle = 'rgba(18, 68, 34, 0.2)';
+          ctx.fillRect(px, py + 2, 4, 1);
+          ctx.fillRect(px + 1, py + 3, 2, 1);
+          if ((th >> 6) % 3 === 0) {
+            ctx.fillStyle = 'rgba(158, 198, 96, 0.24)';
+            ctx.fillRect(px + 2, py, 1, 2);
+            ctx.fillRect(px + 4, py + 1, 1, 1);
+          }
+        }
+      }
+    } else if (isSand) {
+      // Dunas amplias que atraviesan las celdas. La luz se reparte con
+      // halos suaves (sin costuras en los bordes de cada sector).
+      for (let hy = Math.floor(y0 / 168) * 168; hy < y1 + 168; hy += 168) {
+        for (let hx = Math.floor(x0 / 168) * 168; hx < x1 + 168; hx += 168) {
+          const th = hashTile(hx >> 4, hy >> 4);
+          const px = hx + (th % 120);
+          const py = hy + ((th >> 8) % 120);
+          const rad = 80 + ((th >> 3) % 60);
+          if (th & 1) {
+            groundHalo(ctx, px, py, rad, rad * 0.34, '255, 246, 210', 0.16);
+          } else {
+            groundHalo(ctx, px, py, rad, rad * 0.3, '160, 120, 60', 0.1);
+          }
+        }
+      }
+
+      // Ondulaciones eólicas continuas: 1 px de luz sobre 1 px de sombra.
+      const ripStep = 19;
+      const segStep = 26;
+      for (let gy = Math.floor(y0 / ripStep) * ripStep + 6; gy < y1; gy += ripStep) {
+        for (let gx = Math.floor(x0 / segStep) * segStep; gx < x1; gx += segStep) {
+          const th = hashTile(gx >> 2, gy);
+          if (th % 10 < 4) continue;
+          const len = 8 + (th % 8);
+          const dy = ((th >> 5) % 3) - 1;
+          const sx = Math.max(x0, gx);
+          const ex = Math.min(x1, gx + len);
+          if (ex <= sx) continue;
+          ctx.fillStyle = 'rgba(166, 126, 66, 0.17)';
+          ctx.fillRect(sx, gy + 1 + dy, ex - sx, 1);
+          ctx.fillStyle = 'rgba(255, 245, 210, 0.34)';
+          ctx.fillRect(sx, gy + dy, Math.max(1, ex - sx - 1), 1);
+        }
+      }
+
+      // Mica y granos sueltos sobre la arena.
+      for (let gy = Math.floor(y0 / 29) * 29; gy < y1; gy += 29) {
+        for (let gx = Math.floor(x0 / 29) * 29; gx < x1; gx += 29) {
+          const th = hashTile(gx + 11, gy - 7);
+          if (th % 10 < 7) continue;
+          ctx.fillStyle = (th & 1) === 0 ? 'rgba(255, 252, 232, 0.6)' : 'rgba(150, 112, 58, 0.3)';
+          ctx.fillRect(gx + (th % 7), gy + ((th >> 5) % 7), 1, 1);
+        }
+      }
+    } else {
+      // EMPEDRADO: desgaste amplio, polvo y musgo entre juntas.
+      for (let hy = Math.floor(y0 / 176) * 176; hy < y1 + 176; hy += 176) {
+        for (let hx = Math.floor(x0 / 176) * 176; hx < x1 + 176; hx += 176) {
+          const th = hashTile(hx >> 4, hy >> 4);
+          const px = hx + (th % 110);
+          const py = hy + ((th >> 8) % 100);
+          const rad = 70 + ((th >> 3) % 46);
+          if (th & 1) {
+            groundHalo(ctx, px, py, rad, rad * 0.4, '255, 244, 204', 0.09);
+          } else {
+            groundHalo(ctx, px, py, rad, rad * 0.36, '52, 44, 32', 0.07);
+          }
+        }
+      }
+
+      // Grietas finas de lajas y restos de polvo.
+      for (let gy = Math.floor(y0 / 31) * 31; gy < y1; gy += 31) {
+        for (let gx = Math.floor(x0 / 31) * 31; gx < x1; gx += 31) {
+          const th = hashTile(gx - 5, gy + 9);
+          if (th % 10 < 8) continue;
+          ctx.fillStyle = (th & 1) === 0 ? 'rgba(78, 64, 42, 0.26)' : 'rgba(255, 246, 218, 0.26)';
+          ctx.fillRect(gx + (th % 6), gy + ((th >> 4) % 6), 2, 1);
+        }
+      }
+    }
+
+    ctx.restore();
+  }
+}
+
 export function renderIsland70sFrame(params: IslandRenderFrameParams): void {
   const {
     ctx,
@@ -5031,60 +5875,92 @@ export function renderIsland70sFrame(params: IslandRenderFrameParams): void {
   ctx.save();
   ctx.translate(-camX, -camY);
 
-  for (let ty = startTileY; ty <= endTileY; ty++) {
-    for (let tx = startTileX; tx <= endTileX; tx++) {
-      const wx = tx * CELL;
-      const wy = ty * CELL;
-      const th = hashTile(tx, ty);
+  // Manto marino continuo: gradiente de profundidad + corrientes amplias.
+  // Ya no se apoya en el patrón de una baldosa por celda, así que el océano
+  // deja de leerse como un tablero.
+  const seaDepth = ctx.createLinearGradient(camX, camY - 80, camX, camY + vh + 120);
+  seaDepth.addColorStop(0, '#0d3554');
+  seaDepth.addColorStop(0.45, '#0a2a45');
+  seaDepth.addColorStop(1, '#071d31');
+  ctx.fillStyle = seaDepth;
+  ctx.fillRect(camX, camY, vw, vh);
 
-      // Fondo marino con gradiente de profundidad
-      ctx.fillStyle = th % 4 === 0 ? '#0d2d4a' : th % 3 === 0 ? '#113b5e' : '#0a233a';
-      ctx.fillRect(wx, wy, CELL, CELL);
+  const seaCurrent = ctx.createLinearGradient(camX, camY, camX + vw, camY + vh);
+  seaCurrent.addColorStop(0, 'rgba(30, 96, 128, 0.12)');
+  seaCurrent.addColorStop(0.42, 'rgba(8, 40, 62, 0.03)');
+  seaCurrent.addColorStop(0.74, 'rgba(22, 82, 110, 0.1)');
+  seaCurrent.addColorStop(1, 'rgba(4, 22, 38, 0.14)');
+  ctx.fillStyle = seaCurrent;
+  ctx.fillRect(camX, camY, vw, vh);
 
-      // Olas marinas rítmicas animadas estilo Pokémon Esmeralda
-      // Patrón de rombos desplazados que se mueven en 4 fases
-      const waveShift = ((animFrame4 + (tx % 3) + (ty % 3)) % 4);
-      const waveX1 = wx + 4 + waveShift * 4;
-      const waveY1 = wy + 8 + (waveShift % 2);
-      const waveX2 = wx + 18 - waveShift * 3;
-      const waveY2 = wy + 24 - (waveShift % 2);
-
-      // Seno de la ola (sombra marina profunda)
-      ctx.fillStyle = '#061726';
-      ctx.fillRect(waveX1 - 1, waveY1 + 2, 10, 2);
-      ctx.fillRect(waveX2 - 1, waveY2 + 2, 12, 2);
-
-      // Cuerpo de la ola turquesa
-      ctx.fillStyle = '#1e688e';
-      ctx.fillRect(waveX1, waveY1, 8, 2);
-      ctx.fillRect(waveX2, waveY2, 10, 2);
-
-      // Cresta de espuma brillante blanca y cian
-      ctx.fillStyle = '#4ecdc4';
-      ctx.fillRect(waveX1 + 2, waveY1, 4, 1);
-      ctx.fillRect(waveX2 + 3, waveY2, 5, 1);
-
-      // Destello de espuma viva
-      if (th % 3 === 0) {
-        ctx.fillStyle = '#d1fae5';
-        ctx.fillRect(waveX1 + 3, waveY1 - 1, 2, 1);
-      }
-      if (th % 5 === 0) {
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(waveX2 + 4, waveY2 - 1, 2, 1);
-      }
-
-      // Destellos de sol sobre la superficie: rompen la repetición del oleaje.
-      if (th % 7 === 0) {
-        const twinkle = reducedMotion
-          ? 0.35
-          : 0.18 + Math.max(0, Math.sin(elapsed * 1.7 + (th % 29) * 0.9)) * 0.5;
-        ctx.fillStyle = `rgba(207, 250, 254, ${twinkle.toFixed(3)})`;
-        ctx.fillRect(wx + 5 + ((th >> 6) % 20), wy + 13 + ((th >> 12) % 15), 2, 1);
-        if (th % 21 === 0) {
-          ctx.fillStyle = `rgba(255, 255, 255, ${(twinkle * 0.8).toFixed(3)})`;
-          ctx.fillRect(wx + 8 + ((th >> 9) % 14), wy + 18 + ((th >> 15) % 9), 4, 1);
+  // Oleaje orgánico por franjas: crestas largas, quebradas y con dos tonos.
+  const seaRowH = 16;
+  const seaRow0 = Math.floor(camY / seaRowH) * seaRowH - seaRowH;
+  for (let wy = seaRow0; wy < camY + vh + seaRowH; wy += seaRowH) {
+    const row = Math.floor(wy / seaRowH);
+    const drift = reducedMotion
+      ? 0
+      : (elapsed * (4 + (row % 3) * 2) + animFrame4 * 3) % 40;
+    const deep = wy > camY + vh * 0.5;
+    const body = deep ? '#15506f' : '#1b628a';
+    const bodyLit = deep ? '#2a7c9e' : '#3593b4';
+    const crest = deep ? '#45b3b4' : '#5fd4cf';
+    let wx = camX - 50 + ((hashTile(row, 13) % 61)) - drift;
+    while (wx < camX + vw + 50) {
+      const th = (hashTile(Math.floor(wx / 8) + row * 29, row + 7) % 1000) / 1000;
+      if (th > 0.14) {
+        const len = 20 + Math.floor(th * 52);
+        const step = th > 0.52 ? 1 : -1;
+        const lift = Math.round(
+          Math.sin(wx * 0.02 + row * 1.3 + (reducedMotion ? 0 : elapsed * 0.7)) * 2
+        );
+        const split = Math.max(5, Math.floor(len * 0.56));
+        ctx.fillStyle = '#041a2c';
+        ctx.fillRect(wx, wy + lift + 2, split + 1, 2);
+        ctx.fillRect(wx + split, wy + lift + step + 2, len - split, 2);
+        ctx.fillStyle = body;
+        ctx.fillRect(wx, wy + lift, split, 2);
+        ctx.fillRect(wx + split, wy + lift + step, len - split, 2);
+        ctx.fillStyle = bodyLit;
+        ctx.fillRect(wx + 2, wy + lift, Math.max(3, split - 4), 1);
+        ctx.fillStyle = crest;
+        ctx.fillRect(wx + 3, wy + lift, Math.max(2, split - 6), 1);
+        ctx.fillRect(wx + split + 2, wy + lift + step, Math.max(2, len - split - 4), 1);
+        if (th > 0.8) {
+          ctx.fillStyle = '#d1fae5';
+          ctx.fillRect(wx + split + Math.floor((len - split) * 0.6), wy + lift + step - 1, 2, 1);
         }
+      }
+      wx += 26 + ((hashTile(Math.floor(wx) + 5, wy) % 37));
+    }
+  }
+
+  // Swell largo y destellos de superficie: profundidad sin repetición.
+  for (let wy = seaRow0 + 9; wy < camY + vh + seaRowH; wy += seaRowH * 2) {
+    const row = Math.floor(wy / seaRowH);
+    let wx = camX - 30 + (hashTile(row, 41) % 90) - (reducedMotion ? 0 : (elapsed * 2.6) % 70);
+    while (wx < camX + vw + 40) {
+      const len = 50 + (hashTile(Math.floor(wx), wy) % 100);
+      ctx.fillStyle = 'rgba(26, 92, 122, 0.36)';
+      ctx.fillRect(wx, wy, len, 1);
+      ctx.fillStyle = 'rgba(125, 211, 208, 0.22)';
+      ctx.fillRect(wx + 6, wy - 1, Math.max(6, len * 0.45), 1);
+      wx += len + 22 + (hashTile(Math.floor(wx) + 9, wy - 5) % 48);
+    }
+  }
+
+  const seaSpark = 19;
+  for (let wy = Math.floor(camY / seaSpark) * seaSpark; wy < camY + vh + seaSpark; wy += seaSpark) {
+    for (let wx = Math.floor(camX / seaSpark) * seaSpark; wx < camX + vw + seaSpark; wx += seaSpark) {
+      const th = (hashTile(wx + 61, wy - 37) % 1000) / 1000;
+      if (th < 0.78) continue;
+      const tw = Math.sin(elapsed * 1.6 + th * 33 + wx * 0.011);
+      if (tw < 0.3) continue;
+      ctx.fillStyle = `rgba(160, 236, 232, ${(0.12 + tw * 0.22).toFixed(3)})`;
+      ctx.fillRect(wx, wy, 2 + Math.floor(th * 3), 1);
+      if (th > 0.93) {
+        ctx.fillStyle = `rgba(241, 255, 252, ${(0.2 + tw * 0.4).toFixed(3)})`;
+        ctx.fillRect(wx + 1, wy - 1, 2, 1);
       }
     }
   }
@@ -5215,6 +6091,9 @@ export function renderIsland70sFrame(params: IslandRenderFrameParams): void {
       }
     }
   }
+
+  // 3A. LAVADO DE SUELO POR SECTOR: luz, sombra y textura continuas.
+  drawOriginGroundDressing(ctx, camX, camY, vw, vh, southShortcutActive, glitchTrailCleared);
 
   // 3B. SENDEROS ORGÁNICOS Y ESCALINATAS TALLADAS ENTRE DESNIVELES
   drawHandcraftedPathsAndStairs(ctx, camX, camY, vw, vh);

@@ -402,6 +402,32 @@ function wetRimColor(surface: IslaNatalSurface, alpha: number): string {
   return `rgba(50, 46, 40, ${(a * 0.46).toFixed(3)})`;
 }
 
+/**
+ * Mancha suave de luz o de oclusión sobre el terreno. Se usa en la capa
+ * prerenderizada: aporta volumen amplio sin el borde duro de un rectángulo.
+ */
+function paintGroundHalo(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  rx: number,
+  ry: number,
+  rgb: string,
+  alpha: number
+): void {
+  if (rx <= 0 || ry <= 0 || alpha <= 0) return;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(1, Math.max(0.2, ry / rx));
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+  g.addColorStop(0, `rgba(${rgb}, ${alpha.toFixed(3)})`);
+  g.addColorStop(0.55, `rgba(${rgb}, ${(alpha * 0.55).toFixed(3)})`);
+  g.addColorStop(1, `rgba(${rgb}, 0)`);
+  ctx.fillStyle = g;
+  ctx.fillRect(-rx, -rx, rx * 2, rx * 2);
+  ctx.restore();
+}
+
 /* ------------------------------ ARENA ----------------------------- */
 
 function paintSandTexture(
@@ -412,77 +438,94 @@ function paintSandTexture(
   h: number,
   seed: number
 ): void {
-  ctx.fillStyle = '#e6d19b';
+  ctx.fillStyle = '#e3cf99';
   ctx.fillRect(x, y, w, h);
 
-  // Grandes mantos tonales: la arena seca se lee en manchas, no en ruido.
-  for (let py = y; py < y + h; py += 22) {
-    for (let px = x; px < x + w; px += 22) {
-      const th = hash2(px * 0.31 + seed, py * 0.47 - seed);
-      if (th > 0.74) {
-        ctx.fillStyle = th > 0.9 ? '#f0dcaa' : '#eed9a6';
-        ctx.fillRect(px + 2, py + 3, 9 + Math.floor(th * 9), 3);
-        ctx.fillRect(px + 5, py + 7, 6 + Math.floor(th * 5), 2);
-      } else if (th < 0.22) {
-        ctx.fillStyle = 'rgba(198, 166, 112, 0.42)';
-        ctx.fillRect(px + 4, py + 5, 8 + Math.floor(th * 26), 3);
-        ctx.fillRect(px + 2, py + 10, 5 + Math.floor(th * 12), 2);
+  // Mantos de arena: grandes halos cálidos y húmedos que rompen el plano.
+  for (let py = y; py < y + h; py += 54) {
+    for (let px = x; px < x + w; px += 54) {
+      const th = hash2(px * 0.23 + seed, py * 0.31 - seed);
+      const cx = px + 14 + Math.floor(th * 28);
+      const cy = py + 16 + Math.floor(hash2(px + 7, py + 3) * 24);
+      if (th > 0.58) {
+        paintGroundHalo(ctx, cx, cy, 24 + th * 16, 12 + th * 8, '255, 244, 202', 0.12 + th * 0.06);
+      } else {
+        paintGroundHalo(ctx, cx, cy, 22 + th * 20, 11 + th * 9, '178, 142, 88', 0.08 + (1 - th) * 0.04);
       }
     }
   }
 
-  // Rizos de viento: líneas de 1 px con cresta iluminada y surco en sombra.
-  for (let py = y + 4; py < y + h - 2; py += 9) {
-    const off = Math.round(Math.sin(py * 0.12 + seed) * 5);
-    for (let px = x + ((py * 7) % 15); px < x + w; px += 19) {
-      const len = 6 + Math.floor(hash2(px, py) * 9);
-      ctx.fillStyle = 'rgba(188, 151, 95, 0.5)';
-      ctx.fillRect(px + off, py, len, 1);
-      ctx.fillStyle = 'rgba(255, 246, 214, 0.55)';
-      ctx.fillRect(px + off + 1, py - 1, Math.max(2, len - 3), 1);
+  // Dunas: crestas quebradas, nunca líneas rectas. Sombra al sur de la cresta
+  // y luz cálida encima, como el relieve de una playa real.
+  for (let py = y + 3; py < y + h - 1; py += 8) {
+    let px = x + Math.floor(hash2(py, seed) * 18) - 8;
+    while (px < x + w - 2) {
+      const th = hash2(px + 13, py + 71);
+      const len = 5 + Math.floor(th * 13);
+      const lift = Math.round(Math.sin(px * 0.052 + py * 0.13 + seed) * 1.7);
+      if (th > 0.25) {
+        ctx.fillStyle = 'rgba(172, 132, 78, 0.2)';
+        ctx.fillRect(px, py + 1 + lift, Math.min(len, x + w - px), 2);
+        ctx.fillStyle = 'rgba(255, 245, 210, 0.44)';
+        ctx.fillRect(px + 1, py + lift, Math.max(2, Math.min(len - 2, x + w - px - 1)), 1);
+      }
+      px += len + 3 + Math.floor(hash2(px - 9, py + 5) * 11);
     }
   }
 
-  // Granos salinos, conchillas y piedritas.
-  for (let py = y + 2; py < y + h - 1; py += 6) {
-    for (let px = x + 1; px < x + w; px += 7) {
+  // Grano fino: mantiene la superficie viva al acercarse sin ensuciar la lectura.
+  for (let py = y + 1; py < y + h; py += 4) {
+    for (let px = x + 1; px < x + w; px += 5) {
       const th = hash2(px + 41, py - 19);
-      if (th < 0.34) continue;
-      if (th > 0.93) {
-        ctx.fillStyle = 'rgba(255, 250, 236, 0.85)';
+      if (th < 0.42) continue;
+      if (th > 0.91) {
+        ctx.fillStyle = 'rgba(255, 250, 232, 0.72)';
         ctx.fillRect(px, py, 2, 1);
-      } else if (th > 0.58) {
-        ctx.fillStyle = 'rgba(196, 160, 108, 0.45)';
+      } else if (th > 0.68) {
+        ctx.fillStyle = 'rgba(196, 158, 104, 0.3)';
         ctx.fillRect(px, py, 1, 1);
       } else {
-        ctx.fillStyle = 'rgba(255, 240, 198, 0.4)';
+        ctx.fillStyle = 'rgba(255, 240, 198, 0.26)';
         ctx.fillRect(px + 1, py, 1, 1);
       }
     }
   }
 
-  // Restos marinos muy esporádicos.
-  for (let py = y + 8; py < y + h - 8; py += 31) {
-    for (let px = x + 6; px < x + w - 6; px += 37) {
+  // Restos marinos en pequeños racimos: conchas, guijarros y algas secas.
+  for (let py = y + 8; py < y + h - 8; py += 34) {
+    for (let px = x + 6; px < x + w - 8; px += 41) {
       const th = hash2(px + 7 + seed, py + 13);
-      if (th < 0.82) continue;
-      if (th > 0.93) {
-        ctx.fillStyle = '#fff7eb';
-        ctx.fillRect(px, py, 4, 2);
-        ctx.fillRect(px + 1, py - 1, 2, 4);
-        ctx.fillStyle = '#f3b7c8';
-        ctx.fillRect(px + 1, py, 2, 2);
+      if (th < 0.78) continue;
+      const cx = px + Math.floor(hash2(px, py) * 8);
+      const cy = py + Math.floor(hash2(py, px) * 8);
+      if (th > 0.91) {
+        for (let i = 0; i < 3; i++) {
+          const sx = cx + i * 4 + (i % 2);
+          const sy = cy + (i === 1 ? -2 : 0);
+          ctx.fillStyle = 'rgba(146, 112, 64, 0.35)';
+          ctx.fillRect(sx, sy + 2, 4, 1);
+          ctx.fillStyle = '#fff7e6';
+          ctx.fillRect(sx, sy, 3, 2);
+          ctx.fillRect(sx + 1, sy - 1, 1, 3);
+          ctx.fillStyle = '#eeaabf';
+          ctx.fillRect(sx + 1, sy, 1, 1);
+        }
       } else {
-        ctx.fillStyle = '#b9ae97';
-        ctx.fillRect(px, py, 3, 2);
-        ctx.fillStyle = 'rgba(255,255,255,0.4)';
-        ctx.fillRect(px, py, 2, 1);
+        ctx.fillStyle = 'rgba(146, 112, 64, 0.3)';
+        ctx.fillRect(cx + 1, cy + 2, 5, 1);
+        ctx.fillStyle = '#b0a58c';
+        ctx.fillRect(cx, cy, 3, 2);
+        ctx.fillStyle = 'rgba(255, 250, 232, 0.5)';
+        ctx.fillRect(cx, cy, 2, 1);
+        ctx.fillStyle = 'rgba(110, 122, 88, 0.55)';
+        ctx.fillRect(cx + 5, cy + 1, 3, 1);
+        ctx.fillRect(cx + 8, cy, 1, 2);
       }
     }
   }
 
-  // Luz poniente sobre la arena.
-  ctx.fillStyle = 'rgba(255, 236, 190, 0.22)';
+  // Finísima luz poniente sobre la arena, integrada en el material.
+  ctx.fillStyle = 'rgba(255, 236, 190, 0.16)';
   ctx.fillRect(x, y, w, 1);
 }
 
@@ -496,80 +539,156 @@ function paintGrassTexture(
   h: number,
   seed: number
 ): void {
-  ctx.fillStyle = '#457f3b';
+  ctx.fillStyle = '#477d39';
   ctx.fillRect(x, y, w, h);
 
-  // Manchas de pradera (macro-parches de 32 px, paleta cálmica de la Isla del Origen).
-  for (let py = y; py < y + h; py += 32) {
-    for (let px = x; px < x + w; px += 32) {
-      const th = hash2(px * 0.17 + seed, py * 0.29 + 13);
-      const tone = th > 0.72 ? '#4c8a40' : th < 0.28 ? '#3d7336' : '#437c39';
-      ctx.fillStyle = tone;
-      ctx.fillRect(px + 2, py + 3, 18 + Math.floor(th * 10), 11);
-      ctx.fillRect(px + 9, py + 15, 14 + Math.floor(th * 12), 8);
-    }
-  }
-
-  // Matas oscuras y calvas soleadas.
-  for (let py = y + 5; py < y + h - 4; py += 17) {
-    for (let px = x + 4; px < x + w - 6; px += 19) {
-      const th = hash2(px + 73, py + 29);
-      if (th > 0.82) {
-        ctx.fillStyle = 'rgba(34, 76, 34, 0.36)';
-        ctx.fillRect(px, py, 7, 3);
-      } else if (th < 0.12) {
-        ctx.fillStyle = 'rgba(116, 188, 88, 0.3)';
-        ctx.fillRect(px, py, 5, 2);
-      }
-    }
-  }
-
-  // Briznas de hierba: dispersas (como en el Origen) para que la pradera
-  // se lea lisa de lejos, con detalle fino de cerca. Sin ruido de confeti.
-  for (let py = y + 3; py < y + h - 2; py += 12) {
-    for (let px = x + 3; px < x + w - 2; px += 12) {
-      const th = hash2(px + 11, py + 97);
-      if (th < 0.56) continue;
-      const gx = px + Math.floor(th * 5);
-      const gy = py + Math.floor(hash2(px + 5, py + 3) * 5);
-      const tall = 2 + Math.floor(th * 3);
-      ctx.fillStyle = 'rgba(28, 66, 32, 0.34)';
-      ctx.fillRect(gx - 1, gy + 1, 3, 1);
-      ctx.fillStyle = th > 0.78 ? '#74c161' : '#5da847';
-      ctx.fillRect(gx, gy - tall + 1, 1, tall);
-      ctx.fillRect(gx + 2, gy - tall, 1, tall + 1);
-      ctx.fillStyle = '#a4dc80';
-      ctx.fillRect(gx + 1, gy - tall, 1, 1);
-    }
-  }
-
-  // Tréboles y florecillas silvestres muy esporádicas.
-  for (let py = y + 6; py < y + h - 5; py += 24) {
-    for (let px = x + 6; px < x + w - 6; px += 27) {
-      const th = hash2(px - 37, py + 61 + seed);
-      if (th < 0.9) continue;
-      if (th > 0.965) {
-        // Margarita diminuta
-        ctx.fillStyle = '#2f6d33';
-        ctx.fillRect(px + 1, py + 2, 1, 2);
-        ctx.fillStyle = '#f8fafc';
-        ctx.fillRect(px, py, 3, 1);
-        ctx.fillRect(px + 1, py - 1, 1, 3);
-        ctx.fillStyle = '#f59e0b';
-        ctx.fillRect(px + 1, py, 1, 1);
+  // 1. Deriva tonal de la pradera: halos amplios y solapados que imitan el
+  // crecimiento desigual del césped, sin manchas rectangulares.
+  for (let py = y; py < y + h; py += 54) {
+    for (let px = x; px < x + w; px += 54) {
+      const th = hash2(px * 0.19 + seed, py * 0.27 + 13);
+      const cx = px + 14 + Math.floor(hash2(px + 5, py - 3) * 30);
+      const cy = py + 16 + Math.floor(hash2(px - 9, py + 7) * 28);
+      if (th > 0.56) {
+        paintGroundHalo(ctx, cx, cy, 34 + th * 22, 20 + th * 10, '132, 178, 84', 0.12 + th * 0.06);
+      } else if (th < 0.32) {
+        paintGroundHalo(ctx, cx, cy, 32 + th * 26, 19 + th * 10, '28, 70, 38', 0.14 + (1 - th) * 0.05);
+      } else if (th < 0.44) {
+        paintGroundHalo(ctx, cx, cy, 30, 18, '166, 168, 96', 0.06);
       } else {
-        // Trébol de tres hojas
-        ctx.fillStyle = '#3f8a41';
-        ctx.fillRect(px, py, 3, 1);
-        ctx.fillRect(px + 1, py - 1, 1, 3);
-        ctx.fillStyle = '#7fcf66';
-        ctx.fillRect(px, py, 2, 1);
-        ctx.fillRect(px + 2, py + 1, 1, 1);
+        paintGroundHalo(ctx, cx, cy, 38, 22, '190, 216, 126', 0.045);
       }
     }
   }
 
-  ctx.fillStyle = 'rgba(168, 224, 128, 0.16)';
+  // 2. Calvas soleadas y matas profundas de escala media.
+  for (let py = y + 6; py < y + h - 4; py += 19) {
+    for (let px = x + 4; px < x + w - 6; px += 21) {
+      const th = hash2(px + 73, py + 29);
+      if (th > 0.84) {
+        ctx.fillStyle = 'rgba(32, 72, 33, 0.34)';
+        ctx.fillRect(px, py, 8, 3);
+        ctx.fillRect(px + 2, py + 3, 5, 2);
+      } else if (th < 0.13) {
+        ctx.fillStyle = 'rgba(158, 196, 96, 0.28)';
+        ctx.fillRect(px, py, 6, 2);
+        ctx.fillRect(px + 3, py + 2, 4, 1);
+      }
+    }
+  }
+
+  // 3. Grano del terreno: micro-píxeles cálidos y fríos alternados que dan
+  // acabado de superficie pintada en vez de relleno plano.
+  for (let py = y + 1; py < y + h; py += 3) {
+    for (let px = x + 1; px < x + w; px += 4) {
+      const th = hash2(px + 51, py + 131);
+      if (th < 0.5) continue;
+      if (th > 0.91) {
+        ctx.fillStyle = 'rgba(158, 205, 104, 0.32)';
+        ctx.fillRect(px, py, 1, 1);
+      } else if (th > 0.62) {
+        ctx.fillStyle = 'rgba(26, 64, 30, 0.26)';
+        ctx.fillRect(px, py, 1, 1);
+      }
+    }
+  }
+
+  // 4. Briznas: tres siluetas distintas, agrupadas en matas irregulares para
+  // que el prado tenga volumen y no parezca confeti disperso.
+  for (let py = y + 5; py < y + h - 2; py += 11) {
+    for (let px = x + 4; px < x + w - 2; px += 11) {
+      const th = hash2(px + 11, py + 97);
+      if (th < 0.5) continue;
+      const gx = px + Math.floor(th * 6);
+      const gy = py + Math.floor(hash2(px + 5, py + 3) * 6);
+      const kind = Math.floor(hash2(px + 21, py - 11) * 3);
+      const tall = 2 + Math.floor(th * 4);
+      ctx.fillStyle = 'rgba(26, 60, 30, 0.3)';
+      ctx.fillRect(gx - 1, gy + 1, 4, 1);
+      if (kind === 0) {
+        ctx.fillStyle = th > 0.74 ? '#6aae4b' : '#57963f';
+        ctx.fillRect(gx, gy - tall + 1, 1, tall);
+        ctx.fillRect(gx + 2, gy - tall, 1, tall + 1);
+        ctx.fillStyle = '#9ccb6c';
+        ctx.fillRect(gx + 1, gy - tall + 1, 1, 1);
+        ctx.fillStyle = '#b9de86';
+        ctx.fillRect(gx + 2, gy - tall, 1, 1);
+      } else if (kind === 1) {
+        ctx.fillStyle = '#4d8939';
+        ctx.fillRect(gx, gy - tall, 2, tall + 1);
+        ctx.fillStyle = '#74b251';
+        ctx.fillRect(gx + 2, gy - tall + 1, 2, tall);
+        ctx.fillStyle = '#a9d57c';
+        ctx.fillRect(gx + 2, gy - tall + 1, 1, 1);
+        ctx.fillStyle = 'rgba(34, 74, 32, 0.34)';
+        ctx.fillRect(gx + 1, gy - tall + 2, 1, 2);
+      } else {
+        ctx.fillStyle = '#5f9e46';
+        ctx.fillRect(gx + 1, gy - tall - 1, 1, tall + 1);
+        ctx.fillRect(gx, gy - 2, 1, 2);
+        ctx.fillRect(gx + 3, gy - 3, 1, 3);
+        ctx.fillStyle = '#a4cf74';
+        ctx.fillRect(gx + 1, gy - tall - 1, 1, 1);
+      }
+    }
+  }
+
+  // 5. Tréboles en parches y florecillas silvestres.
+  for (let py = y + 6; py < y + h - 5; py += 26) {
+    for (let px = x + 6; px < x + w - 6; px += 29) {
+      const th = hash2(px - 37, py + 61 + seed);
+      if (th < 0.86) continue;
+      if (th > 0.955) {
+        // Margarita con tallo y sombra.
+        ctx.fillStyle = 'rgba(30, 64, 30, 0.35)';
+        ctx.fillRect(px, py + 3, 4, 1);
+        ctx.fillStyle = '#357a37';
+        ctx.fillRect(px + 1, py + 1, 1, 3);
+        ctx.fillRect(px + 2, py + 2, 2, 1);
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(px, py - 1, 3, 1);
+        ctx.fillRect(px + 1, py - 2, 1, 3);
+        ctx.fillRect(px + 2, py, 2, 1);
+        ctx.fillStyle = '#fbbf24';
+        ctx.fillRect(px + 1, py - 1, 1, 1);
+      } else {
+        // Parche de trébol: varias hojitas agrupadas.
+        for (let i = 0; i < 3; i++) {
+          const ox = px + i * 3;
+          const oy = py + (i % 2) * 2;
+          ctx.fillStyle = '#397c3b';
+          ctx.fillRect(ox, oy, 3, 1);
+          ctx.fillRect(ox + 1, oy - 1, 1, 3);
+          ctx.fillStyle = '#7cc25a';
+          ctx.fillRect(ox, oy, 2, 1);
+          ctx.fillRect(ox + 2, oy + 1, 1, 1);
+        }
+      }
+    }
+  }
+
+  // 6. Paja seca y piedritas: anclan la escala y dan aspereza al borde.
+  for (let py = y + 9; py < y + h - 6; py += 37) {
+    for (let px = x + 11; px < x + w - 9; px += 43) {
+      const th = hash2(px + 17, py - 5);
+      if (th < 0.8) continue;
+      if (th > 0.9) {
+        ctx.fillStyle = 'rgba(120, 130, 82, 0.5)';
+        ctx.fillRect(px, py, 3, 1);
+        ctx.fillRect(px + 3, py - 1, 2, 1);
+        ctx.fillStyle = 'rgba(255, 244, 202, 0.3)';
+        ctx.fillRect(px + 1, py - 1, 1, 1);
+      } else {
+        ctx.fillStyle = '#8d8779';
+        ctx.fillRect(px, py, 2, 2);
+        ctx.fillStyle = 'rgba(255, 244, 220, 0.45)';
+        ctx.fillRect(px, py, 1, 1);
+      }
+    }
+  }
+
+  // 7. Luz poniente muy tenue sobre el borde superior del césped.
+  ctx.fillStyle = 'rgba(196, 224, 138, 0.12)';
   ctx.fillRect(x, y, w, 1);
 }
 
@@ -594,6 +713,46 @@ function paintPathTexture(
       ctx.fillStyle = th > 0.6 ? 'rgba(198, 166, 116, 0.55)' : 'rgba(146, 111, 67, 0.45)';
       ctx.fillRect(px + 1, py + 2, 9 + Math.floor(th * 7), 3);
       ctx.fillRect(px + 8, py + 11, 6 + Math.floor(th * 6), 2);
+    }
+  }
+
+  // Oclusión del borde: la tierra se hunde bajo el césped que la rodea.
+  const edge = Math.min(9, Math.floor(Math.min(w, h) * 0.18));
+  if (edge > 2) {
+    const top = ctx.createLinearGradient(0, y, 0, y + edge);
+    top.addColorStop(0, 'rgba(58, 40, 20, 0.3)');
+    top.addColorStop(1, 'rgba(58, 40, 20, 0)');
+    ctx.fillStyle = top;
+    ctx.fillRect(x, y, w, edge);
+    const left = ctx.createLinearGradient(x, 0, x + edge, 0);
+    left.addColorStop(0, 'rgba(72, 50, 26, 0.22)');
+    left.addColorStop(1, 'rgba(72, 50, 26, 0)');
+    ctx.fillStyle = left;
+    ctx.fillRect(x, y, edge, h);
+    const bottom = ctx.createLinearGradient(0, y + h - edge, 0, y + h);
+    bottom.addColorStop(0, 'rgba(58, 40, 20, 0)');
+    bottom.addColorStop(1, 'rgba(48, 32, 16, 0.26)');
+    ctx.fillStyle = bottom;
+    ctx.fillRect(x, y + h - edge, w, edge);
+    const right = ctx.createLinearGradient(x + w - edge, 0, x + w, 0);
+    right.addColorStop(0, 'rgba(58, 40, 20, 0)');
+    right.addColorStop(1, 'rgba(48, 32, 16, 0.2)');
+    ctx.fillStyle = right;
+    ctx.fillRect(x + w - edge, y, edge, h);
+  }
+
+  // Polvo y grano mineral: la superficie del sendero también tiene textura.
+  for (let py = y + 1; py < y + h; py += 3) {
+    for (let px = x + 1; px < x + w; px += 4) {
+      const th = hash2(px + 83, py + 151);
+      if (th < 0.52) continue;
+      ctx.fillStyle =
+        th > 0.9
+          ? 'rgba(240, 218, 172, 0.4)'
+          : th > 0.68
+            ? 'rgba(122, 88, 50, 0.28)'
+            : 'rgba(210, 180, 128, 0.2)';
+      ctx.fillRect(px, py, 1, 1);
     }
   }
 
@@ -987,6 +1146,30 @@ function paintGroundLayer(field: NatalCoastField): HTMLCanvasElement {
   // 4. Costa, bajío y orla húmeda (por encima de las texturas).
   paintCoastBand(ctx, field);
 
+  // 5. Luz de la isla: el sol bajo del oeste besa la costa y el sureste queda
+  // en penumbra azulada. Unifica césped, arena, sendero y roca.
+  const worldW = canvas.width;
+  const worldH = canvas.height;
+  const worldLight = ctx.createLinearGradient(0, 0, worldW, worldH);
+  worldLight.addColorStop(0, 'rgba(255, 226, 164, 0.075)');
+  worldLight.addColorStop(0.34, 'rgba(255, 236, 190, 0.02)');
+  worldLight.addColorStop(0.62, 'rgba(210, 230, 200, 0)');
+  worldLight.addColorStop(1, 'rgba(18, 52, 64, 0.055)');
+  ctx.fillStyle = worldLight;
+  ctx.fillRect(0, 0, worldW, worldH);
+
+  // 6. Grandes sombras de nube y calvas de sol: profundidad atmosférica que
+  // rompe la uniformidad de la pradera sin tocar la geometría del mapa.
+  for (let i = 0; i < 9; i += 1) {
+    const th = hash2(i * 91 + 7, i * 37 + 19);
+    const cx = (th * 0.9 + 0.05) * worldW;
+    const cy = (hash2(i * 13 + 3, i * 71 + 5) * 0.86 + 0.07) * worldH;
+    const rx = 90 + th * 110;
+    const ry = 44 + th * 52;
+    paintGroundHalo(ctx, cx, cy, rx, ry, '22, 52, 46', 0.05);
+    paintGroundHalo(ctx, cx + rx * 0.5, cy + ry * 0.6, rx * 0.6, ry * 0.6, '12, 38, 34', 0.035);
+  }
+
   return canvas;
 }
 
@@ -1011,121 +1194,160 @@ function drawOcean(
   vh: number,
   elapsed: number,
   animFrame4: number,
-  charge: number
+  charge: number,
+  reducedMotion: boolean
 ): void {
-  const startTileX = Math.floor(camX / CELL) - 1;
-  const endTileX = Math.ceil((camX + vw) / CELL) + 1;
-  const startTileY = Math.floor(camY / CELL) - 1;
-  const endTileY = Math.ceil((camY + vh) / CELL) + 1;
-
   // Gradiente de profundidad: el mar pierde luz hacia el sur, como en la hora dorada.
   const depth = ctx.createLinearGradient(0, camY, 0, camY + vh);
-  depth.addColorStop(0, '#0d3553');
-  depth.addColorStop(0.45, '#0a2b47');
-  depth.addColorStop(1, '#061e33');
+  depth.addColorStop(0, '#0c3452');
+  depth.addColorStop(0.42, '#092b47');
+  depth.addColorStop(1, '#051c31');
   ctx.fillStyle = depth;
   ctx.fillRect(camX, camY, vw, vh);
 
-  for (let ty = startTileY; ty <= endTileY; ty++) {
-    for (let tx = startTileX; tx <= endTileX; tx++) {
-      const wx = tx * CELL;
-      const wy = ty * CELL;
-      const th = hash2(tx, ty);
-      // Manto de profundidad continuo: sin bloques de 3×3 celdas.
-      const macro =
-        0.5 +
-        0.28 * Math.sin(wx * 0.011 + Math.sin(wy * 0.007) * 2.3) +
-        0.22 * Math.sin(wy * 0.015 + 1.7);
-      // Tinte de profundidad muy suave: al bajar el alfa, la retícula de celdas
-      // deja de leerse como cuadrados y el mar se ve continuo como en el Origen.
-      const macroAlpha = 0.04 + macro * 0.12;
+  // Corrientes de gran escala: bandas suaves que impiden leer el mar como un
+  // color plano y acompañan la dirección del oleaje.
+  const current = ctx.createLinearGradient(camX, camY, camX + vw, camY + vh);
+  current.addColorStop(0, 'rgba(22, 82, 112, 0.1)');
+  current.addColorStop(0.38, 'rgba(8, 40, 62, 0.04)');
+  current.addColorStop(0.72, 'rgba(16, 70, 96, 0.09)');
+  current.addColorStop(1, 'rgba(4, 22, 38, 0.12)');
+  ctx.fillStyle = current;
+  ctx.fillRect(camX, camY, vw, vh);
 
-      ctx.fillStyle = `rgba(18, 66, 98, ${macroAlpha.toFixed(3)})`;
-      ctx.fillRect(wx, wy, CELL, CELL);
-      if (macro < 0.24) {
-        ctx.fillStyle = 'rgba(3, 16, 28, 0.12)';
-        ctx.fillRect(wx, wy, CELL, CELL);
-      }
+  const drawCrest = (
+    cx: number,
+    cy: number,
+    len: number,
+    deep: boolean,
+    foam: boolean,
+    step: number
+  ) => {
+    const shadow = deep ? '#03121f' : '#04182a';
+    const body = charge > 0.4 ? (deep ? '#134e70' : '#1b6b92') : deep ? '#0f4058' : '#195f86';
+    const crest = charge > 0.4 ? (deep ? '#4cb6b2' : '#63d4ce') : deep ? '#3d9a9c' : '#4fbdbd';
+    const split = Math.max(4, Math.floor(len * 0.56));
+    const right = len - split;
+    const cy2 = cy + step;
+    // Sombra escalonada: la cresta se quiebra en dos tramos, no es un guion.
+    ctx.fillStyle = shadow;
+    ctx.fillRect(cx, cy + 2, split + 1, 2);
+    ctx.fillRect(cx + split, cy2 + 2, right, 2);
+    ctx.fillRect(cx + 3, cy + 4, Math.max(2, split - 5), 1);
+    ctx.fillStyle = body;
+    ctx.fillRect(cx, cy, split, 2);
+    ctx.fillRect(cx + split, cy2, right, 2);
+    ctx.fillStyle = crest;
+    ctx.fillRect(cx + 2, cy, Math.max(2, split - 3), 1);
+    ctx.fillRect(cx + split + 1, cy2, Math.max(2, right - 2), 1);
+    if (foam) {
+      ctx.fillStyle = 'rgba(223, 247, 238, 0.85)';
+      ctx.fillRect(cx + split + 1, cy2 - 1, 2, 1);
+    }
+  };
 
-      const shift = (animFrame4 + (tx % 4) + (ty % 3)) % 4;
-
-      // Oleaje principal: dos crestas desfasadas que no siempre aparecen.
-      const w1x = wx + 2 + Math.floor(th * 12) + shift * 3;
-      const w1y = wy + 7 + (shift % 3);
-      const w2x = wx + 18 - shift * 3 + Math.floor((1 - th) * 8);
-      const w2y = wy + 22 - (shift % 3);
-      const len1 = 7 + Math.floor(th * 5);
-      const len2 = 6 + Math.floor((1 - th) * 6);
-
-      if (th > 0.18) {
-        ctx.fillStyle = '#04182a';
-        ctx.fillRect(w1x - 1, w1y + 2, len1 + 2, 2);
-        ctx.fillStyle = charge > 0.4 ? '#1f719b' : '#195f86';
-        ctx.fillRect(w1x, w1y, len1, 2);
-        ctx.fillStyle = charge > 0.4 ? '#63d4ce' : '#4fbdbd';
-        ctx.fillRect(w1x + 2, w1y, Math.max(2, len1 - 4), 1);
-      }
-      if (th < 0.84) {
-        ctx.fillStyle = '#04182a';
-        ctx.fillRect(w2x - 1, w2y + 2, len2 + 2, 2);
-        ctx.fillStyle = charge > 0.4 ? '#1f719b' : '#195f86';
-        ctx.fillRect(w2x, w2y, len2, 2);
-        ctx.fillStyle = charge > 0.4 ? '#63d4ce' : '#4fbdbd';
-        ctx.fillRect(w2x + 2, w2y, Math.max(2, len2 - 3), 1);
-      }
-
-      // Cresta corta de relleno, en posición variable.
-      if (th > 0.52) {
-        const w3x = wx + 6 + Math.floor(hash2(tx + 7, ty - 3) * 18);
-        const w3y = wy + 14 + Math.floor(hash2(tx - 2, ty + 9) * 12);
-        const len3 = 3 + Math.floor(th * 3);
-        ctx.fillStyle = 'rgba(41, 118, 148, 0.7)';
-        ctx.fillRect(w3x, w3y, len3, 1);
-        ctx.fillStyle = 'rgba(132, 214, 208, 0.5)';
-        ctx.fillRect(w3x + 1, w3y - 1, Math.max(1, len3 - 2), 1);
-      }
-
-      // Espuma suelta sobre las crestas.
-      if (th > 0.8) {
-        ctx.fillStyle = 'rgba(223, 247, 238, 0.9)';
-        ctx.fillRect(w1x + 3, w1y - 1, 2, 1);
-      }
-      if (th < 0.13) {
-        ctx.fillStyle = '#dff7ee';
-        ctx.fillRect(w2x + 4, w2y - 1, 2, 1);
-      }
-
-      // Swell largo: líneas tenues que atraviesan varias celdas.
-      if (th > 0.62) {
-        const sx = wx + 4 + Math.floor(th * 10);
-        const sy = wy + 15 + (shift % 3);
-        ctx.fillStyle = 'rgba(30, 96, 128, 0.5)';
-        ctx.fillRect(sx, sy, 13 + Math.floor(th * 8), 1);
-        ctx.fillStyle = 'rgba(88, 183, 180, 0.35)';
-        ctx.fillRect(sx + 2, sy - 1, 6, 1);
-      }
-
-      // Pequeños remolinos y destellos de corriente.
-      if (macro > 0.7) {
-        const gl = Math.sin(elapsed * 1.3 + tx * 0.8 + ty * 0.5);
-        if (gl > 0.55) {
-          ctx.fillStyle = 'rgba(150, 226, 220, 0.5)';
-          ctx.fillRect(wx + 12, wy + 18, 3, 1);
+  // Oleaje orgánico: crestas largas y quebradas, sin retícula de celdas.
+  const rowH = 15;
+  const row0 = Math.floor(camY / rowH) * rowH - rowH;
+  for (let wy = row0; wy < camY + vh + rowH; wy += rowH) {
+    const row = Math.floor(wy / rowH);
+    const phase = hash2(row, 7) * 6.283;
+    const drift = reducedMotion
+      ? 0
+      : (elapsed * (5 + (row % 3) * 2) + animFrame4 * 2.4) % 38;
+    const deep = wy > camY + vh * 0.48;
+    let wx = camX - 48 + Math.floor(hash2(row, 13) * 70) - drift;
+    while (wx < camX + vw + 46) {
+      const th = hash2(Math.floor(wx / 9) + row * 31, row);
+      if (th > 0.12) {
+        const len = 18 + Math.floor(th * 46);
+        const lift = Math.round(
+          Math.sin(wx * 0.021 + row * 1.37 + (reducedMotion ? 0 : elapsed * 0.8)) * 2
+        );
+        drawCrest(wx, wy + lift, len, deep, th > 0.82, th > 0.5 ? 1 : -1);
+        // Eco de cresta: una segunda línea corta por encima rompe la lectura
+        // de "guiones" repetidos y da grosor al agua.
+        if (th > 0.56) {
+          ctx.fillStyle = deep ? 'rgba(42, 118, 140, 0.55)' : 'rgba(44, 128, 154, 0.55)';
+          ctx.fillRect(wx + 6, wy + lift - 3, Math.max(4, len - 14), 1);
+          ctx.fillStyle = 'rgba(132, 214, 208, 0.32)';
+          ctx.fillRect(wx + 9, wy + lift - 4, Math.max(3, len - 22), 1);
         }
       }
+      wx += 24 + Math.floor(hash2(wx + 9, wy + 5) * 34);
+    }
+  }
 
-      // Reflejo dorado del sol poniente sobre la mitad oeste.
-      if (wx < 820 && th % 5 === 0) {
-        const glint = Math.sin(elapsed * 1.6 + tx * 0.7 + ty * 0.4);
-        if (glint > 0.35) {
-          ctx.fillStyle = `rgba(247, 212, 137, ${(0.24 + glint * 0.34).toFixed(3)})`;
-          ctx.fillRect(w2x + 1, w2y - 2, 6 + Math.floor(glint * 5), 1);
-          if (glint > 0.8) {
-            ctx.fillStyle = 'rgba(255, 244, 214, 0.8)';
-            ctx.fillRect(w2x + 3, w2y - 2, 2, 1);
-          }
-        }
+  // Swell profundo: líneas largas y tenues que atraviesan el mar abierto.
+  for (let wy = row0 + 7; wy < camY + vh + rowH; wy += rowH * 2) {
+    const row = Math.floor(wy / rowH);
+    let wx = camX - 30 + Math.floor(hash2(row, 41) * 80) - (reducedMotion ? 0 : (elapsed * 3) % 60);
+    while (wx < camX + vw + 30) {
+      const len = 46 + Math.floor(hash2(wx, wy) * 90);
+      ctx.fillStyle = 'rgba(28, 92, 120, 0.34)';
+      ctx.fillRect(wx, wy, len, 1);
+      ctx.fillStyle = 'rgba(86, 178, 176, 0.22)';
+      ctx.fillRect(wx + 5, wy - 1, Math.max(6, len * 0.45), 1);
+      wx += len + 20 + Math.floor(hash2(wx + 3, wy - 7) * 46);
+    }
+  }
+
+  // Chop fino: micro-ondas que rellenan los huecos entre crestas y evitan
+  // que el mar abierto se lea como una superficie vacía.
+  const chopW = 14;
+  const chopH = 9;
+  for (let wy = Math.floor(camY / chopH) * chopH; wy < camY + vh + chopH; wy += chopH) {
+    for (let wx = Math.floor(camX / chopW) * chopW; wx < camX + vw + chopW; wx += chopW) {
+      const th = hash2(wx * 0.7 + 3, wy);
+      if (th < 0.58) continue;
+      const drift = reducedMotion ? 0 : Math.round(Math.sin(elapsed * 0.9 + th * 12));
+      const oy = Math.round(hash2(wx + 17, wy - 5) * 5) - 2;
+      const deep = wy > camY + vh * 0.5;
+      ctx.fillStyle = deep ? 'rgba(30, 92, 112, 0.3)' : 'rgba(46, 124, 148, 0.32)';
+      ctx.fillRect(wx + drift, wy + oy, 2 + Math.floor(th * 5), 1);
+      if (th > 0.88) {
+        ctx.fillStyle = 'rgba(126, 206, 202, 0.22)';
+        ctx.fillRect(wx + drift + 1, wy + oy - 1, 1, 1);
       }
+    }
+  }
+
+  // Destellos de corriente y reflejo dorado del sol poniente al oeste.
+  const sparkGrid = 18;
+  const gx0 = Math.floor(camX / sparkGrid) * sparkGrid;
+  const gy0 = Math.floor(camY / sparkGrid) * sparkGrid;
+  for (let wy = gy0; wy < camY + vh + sparkGrid; wy += sparkGrid) {
+    for (let wx = gx0; wx < camX + vw + sparkGrid; wx += sparkGrid) {
+      const th = hash2(wx + 61, wy - 37);
+      if (th < 0.76) continue;
+      const tw = Math.sin(elapsed * 1.5 + th * 31 + wx * 0.01 + wy * 0.013);
+      if (tw < 0.25) continue;
+      const len = 2 + Math.floor(th * 4);
+      if (wx < 820) {
+        ctx.fillStyle = `rgba(247, 214, 142, ${(0.18 + tw * 0.3).toFixed(3)})`;
+        ctx.fillRect(wx, wy, len + 2, 1);
+        if (tw > 0.8) {
+          ctx.fillStyle = 'rgba(255, 246, 216, 0.75)';
+          ctx.fillRect(wx + 1, wy - 1, 2, 1);
+        }
+      } else {
+        ctx.fillStyle = `rgba(150, 226, 220, ${(0.12 + tw * 0.22).toFixed(3)})`;
+        ctx.fillRect(wx, wy, len, 1);
+      }
+    }
+  }
+
+  // Remolinos y espuma suelta, sólo donde la corriente se cruza.
+  for (let wy = row0 + 3; wy < camY + vh + rowH; wy += rowH * 3) {
+    const row = Math.floor(wy / rowH);
+    for (let wx = camX - 20 + Math.floor(hash2(row, 23) * 60); wx < camX + vw; wx += 90) {
+      const th = hash2(wx, wy + 11);
+      if (th < 0.72) continue;
+      ctx.fillStyle = 'rgba(120, 208, 200, 0.35)';
+      ctx.fillRect(wx, wy, 3, 1);
+      ctx.fillRect(wx + 4, wy + 1, 2, 1);
+      ctx.fillStyle = 'rgba(223, 247, 238, 0.5)';
+      ctx.fillRect(wx + 1, wy - 1, 1, 1);
     }
   }
 }
@@ -1335,7 +1557,6 @@ function drawBush(
   const sway = reducedMotion ? 0 : Math.round(Math.sin(elapsed * 1.6 + seed * 8) * 0.8);
   const w = 26 + Math.floor(seed * 10);
   const half = Math.round(w / 2);
-  const rows = 4;
 
   // Sombra de contacto.
   ctx.fillStyle = 'rgba(18, 44, 22, 0.34)';
@@ -1343,29 +1564,64 @@ function drawBush(
   ctx.ellipse(x + 2, y + 1, half - 2, 5, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Silueta con contorno oscuro y tres capas de follaje.
-  const rowW = [w, w - 2, w - 9, w - 18];
-  for (let i = rows - 1; i >= 0; i--) {
-    const rw = rowW[i];
-    const ry = y - 4 - i * 5;
-    const rx = x - Math.round(rw / 2) + (i < 2 ? sway : 0);
-    ctx.fillStyle = '#173c1d';
-    ctx.fillRect(rx - 1, ry - 1, rw + 2, 7);
-    ctx.fillStyle = i >= 2 ? '#245f2b' : i === 1 ? '#2f7d3a' : '#3d8f43';
-    ctx.fillRect(rx, ry, rw, 5);
-    // Bisel superior iluminado del costado oeste.
-    ctx.fillStyle = i >= 2 ? '#357f3a' : '#4f9f4c';
-    ctx.fillRect(rx + 1, ry, rw - 3, 1);
+  // Lóbulos redondeados con esquinas achaflanadas: la copa deja de ser una
+  // pila de rectángulos y gana volumen de arbusto pintado a mano.
+  const blob = (
+    cx: number,
+    cy: number,
+    rx: number,
+    ry: number,
+    color: string,
+    pad = 0
+  ) => {
+    const hw = Math.max(2, Math.round(rx + pad));
+    const hh = Math.max(2, Math.round(ry + pad));
+    ctx.fillStyle = color;
+    ctx.fillRect(cx - hw + 2, cy - hh, hw * 2 - 4, hh * 2);
+    ctx.fillRect(cx - hw, cy - hh + 2, hw * 2, hh * 2 - 4);
+    ctx.fillRect(cx - hw + 1, cy - hh + 1, hw * 2 - 2, hh * 2 - 2);
+  };
+
+  const lobes = [
+    { cx: x - half * 0.54, cy: y - 8, rx: half * 0.56, ry: 8 },
+    { cx: x + half * 0.5, cy: y - 9, rx: half * 0.57, ry: 8 },
+    { cx: x - half * 0.2 + sway, cy: y - 17, rx: half * 0.52, ry: 9 },
+    { cx: x + half * 0.22 + sway, cy: y - 18, rx: half * 0.5, ry: 8 },
+    { cx: x + sway * 0.6, cy: y - 25, rx: half * 0.43, ry: 7 },
+  ];
+
+  for (const l of lobes) blob(l.cx, l.cy, l.rx, l.ry, '#123217', 1.4);
+  for (const l of lobes) blob(l.cx, l.cy + 1, l.rx, l.ry, '#1e4a24', 0.2);
+  for (const l of lobes) blob(l.cx, l.cy, l.rx - 1, l.ry - 1, '#2c642f', 0);
+  for (const l of lobes) {
+    blob(l.cx - 2, l.cy - 2, l.rx * 0.55, l.ry * 0.52, '#3f8a3f', 0);
+    blob(l.cx - 3, l.cy - 3, l.rx * 0.28, l.ry * 0.26, '#69b854', 0);
   }
 
-  // Hojas sueltas que rompen el contorno.
-  for (let i = 0; i < 7; i++) {
+  // Hojas individuales en el borde: rompen la silueta y dan textura de follaje.
+  for (let i = 0; i < 12; i++) {
     const th = hash2(x + i * 13, y - i * 7);
-    if (th < 0.4) continue;
-    const lx = x - half + Math.round(th * (w - 6));
-    const ly = y - 6 - Math.floor(hash2(i + 3, x) * 16);
-    ctx.fillStyle = th > 0.7 ? '#7fc460' : '#2b6f33';
+    if (th < 0.32) continue;
+    const ang = th * Math.PI * 2;
+    const lx = x + sway + Math.round(Math.cos(ang) * (half - 1 + th * 4));
+    const ly = y - 14 + Math.round(Math.sin(ang) * (13 + th * 5));
+    const lit = Math.cos(ang) < -0.1 && Math.sin(ang) < 0.35;
+    ctx.fillStyle = lit ? '#83c962' : th > 0.7 ? '#3f8a3f' : '#1d4723';
     ctx.fillRect(lx, ly, 3, 2);
+    if (lit) {
+      ctx.fillStyle = '#a9e284';
+      ctx.fillRect(lx, ly, 1, 1);
+    }
+  }
+
+  // Mechones y sombras internas: profundidad dentro de la copa.
+  for (let i = 0; i < 6; i++) {
+    const th = hash2(x + 19 + i * 7, y - 9 - i * 4);
+    const lx = x - half + 4 + Math.round(th * (w - 8));
+    const ly = y - 8 - Math.floor(hash2(i + 5, x) * 16);
+    ctx.fillStyle = th > 0.55 ? 'rgba(18, 52, 24, 0.55)' : 'rgba(120, 190, 90, 0.5)';
+    ctx.fillRect(lx, ly, 3, 2);
+    ctx.fillRect(lx + 2, ly - 1, 1, 1);
   }
 
   // Bayas rojas sobre el follaje (sólo en los arbustos marcados).
@@ -1373,6 +1629,8 @@ function drawBush(
     for (let i = 0; i < 4; i++) {
       const bx = x - half + 6 + Math.round(hash2(x + i, y + 5) * (w - 14));
       const by = y - 8 - Math.floor(hash2(y - i, x + 9) * 12);
+      ctx.fillStyle = 'rgba(30, 10, 12, 0.5)';
+      ctx.fillRect(bx + 1, by + 1, 3, 3);
       ctx.fillStyle = '#8b1e24';
       ctx.fillRect(bx, by, 3, 3);
       ctx.fillStyle = '#e0524e';
@@ -1541,14 +1799,14 @@ function drawPalm(
   const crownX = baseX + 11 + Math.round(sway * 0.9);
   const crownY = baseY - h;
 
-  const fronds = 10;
+  const fronds = 12;
   const specs: { ang: number; len: number; droop: number }[] = [];
   for (let i = 0; i < fronds; i++) {
     const ang = (i / fronds) * Math.PI * 2 + 0.28 + seed * 1.6;
     specs.push({
       ang,
-      len: 19 + Math.floor(hash2(i + 3, Math.round(seed * 90)) * 9),
-      droop: 5 + hash2(i - 7, Math.round(seed * 40)) * 7,
+      len: 20 + Math.floor(hash2(i + 3, Math.round(seed * 90)) * 10),
+      droop: 4 + hash2(i - 7, Math.round(seed * 40)) * 8,
     });
   }
   specs.sort((a, b) => Math.sin(a.ang) - Math.sin(b.ang));
@@ -1574,13 +1832,18 @@ function drawPalm(
       ctx.fillStyle = shade;
       ctx.fillRect(px - 1, py, 2, 2);
       if (s % 2 === 0) {
-        const leaf = Math.min(4, 1 + Math.round((1 - t) * 3));
+        const leaf = Math.min(5, 1 + Math.round((1 - t) * 4));
+        const lx = Math.round(perpX * leaf);
+        const ly = Math.round(perpY * leaf);
         ctx.fillStyle = mid;
-        ctx.fillRect(px + Math.round(perpX * leaf) - 1, py + Math.round(perpY * leaf), 1, 1);
-        ctx.fillRect(px - Math.round(perpX * leaf) - 1, py - Math.round(perpY * leaf), 1, 1);
+        // Folíolos de 2 px: la palma gana cuerpo sin perder el filo pixel-art.
+        ctx.fillRect(px + lx - 1, py + ly, 2, 1);
+        ctx.fillRect(px - lx - 1, py - ly, 2, 1);
+        ctx.fillRect(px + Math.round(lx * 0.55), py + Math.round(ly * 0.55), 1, 1);
         if (s % 4 === 0) {
           ctx.fillStyle = light;
-          ctx.fillRect(px + Math.round(perpX * leaf), py + Math.round(perpY * leaf) - 1, 1, 1);
+          ctx.fillRect(px + lx, py + ly - 1, 1, 1);
+          ctx.fillRect(px - lx, py - ly, 1, 1);
         }
       }
     }
@@ -1609,6 +1872,14 @@ function drawPalm(
       0
     );
   }
+
+  // Luz de borde del oeste sobre las frondas superiores.
+  ctx.fillStyle = 'rgba(190, 228, 140, 0.55)';
+  ctx.fillRect(crownX - 9, crownY - 6, 3, 1);
+  ctx.fillRect(crownX - 12, crownY - 2, 2, 1);
+  ctx.fillRect(crownX - 4, crownY - 10, 2, 1);
+  ctx.fillStyle = 'rgba(236, 250, 190, 0.4)';
+  ctx.fillRect(crownX - 10, crownY - 7, 1, 1);
 
   // Corona fibrosa y brote central.
   ctx.fillStyle = '#6b4a2a';
@@ -1871,22 +2142,21 @@ function drawHut(ctx: CanvasRenderingContext2D, elapsed: number, reducedMotion: 
   ctx.fillStyle = 'rgba(36, 40, 30, 0.45)';
   ctx.fillRect(x - 2, y + h + 1, w + 4, 2);
 
-  // Muros de madera con tablas, vetas y nudos.
+  // Muros de mampostería con entramado de troncos.
   ctx.fillStyle = '#6b482c';
   ctx.fillRect(x, y + 26, w, h - 26);
-  ctx.fillStyle = '#7d5738';
+  ctx.fillStyle = '#b7a88c';
   ctx.fillRect(x + 3, y + 28, w - 6, h - 32);
-  for (let py = y + 30; py < y + h - 8; py += 8) {
-    ctx.fillStyle = 'rgba(52, 33, 19, 0.5)';
-    ctx.fillRect(x + 3, py + 7, w - 6, 1);
-    ctx.fillStyle = 'rgba(214, 164, 108, 0.18)';
-    ctx.fillRect(x + 4, py, w - 9, 1);
-    for (let px = x + 7; px < x + w - 8; px += 17) {
+  for (let py = y + 30, row = 0; py < y + h - 8; py += 8, row++) {
+    const odd = row % 2;
+    for (let px = x + 4 + (odd ? -6 : 0); px < x + w - 6; px += 14) {
       const th = hash2(px + 3, py - 7);
-      if (th > 0.82) {
-        ctx.fillStyle = 'rgba(64, 38, 20, 0.55)';
-        ctx.fillRect(px, py + 2, 2, 2);
-      }
+      ctx.fillStyle = th > 0.66 ? '#c4b49a' : th > 0.33 ? '#a89880' : '#8e8270';
+      ctx.fillRect(px, py, 12, 6);
+      ctx.fillStyle = 'rgba(255, 244, 220, 0.22)';
+      ctx.fillRect(px, py, 10, 1);
+      ctx.fillStyle = 'rgba(40, 32, 22, 0.3)';
+      ctx.fillRect(px, py + 5, 12, 1);
     }
   }
 
@@ -3498,73 +3768,257 @@ export interface IslaNatalCabinRenderParams {
   storm?: { t: number } | null;
 }
 
-/** Sala de la cabaña: madera cálida, luz de tarde y la mochila familiar. */
+const CABIN_BOOK_COLORS = [
+  '#1d3d78',
+  '#164a38',
+  '#7a1c28',
+  '#8a5a16',
+  '#3a2468',
+  '#1f5868',
+  '#6a3416',
+  '#b07a22',
+  '#2f5c2a',
+  '#4a1c48',
+  '#245a78',
+  '#8c3a18',
+];
+
+function drawCabinBookRow(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  seed: number
+): void {
+  let bx = x;
+  let col = seed | 0;
+  while (bx < x + w - 2) {
+    const bw = 2 + (col % 3);
+    if (bx + bw > x + w) break;
+    const bh = Math.max(6, h - 1 - (col % 5));
+    ctx.fillStyle = CABIN_BOOK_COLORS[col % CABIN_BOOK_COLORS.length];
+    ctx.fillRect(bx, y + h - bh, bw, bh);
+    ctx.fillStyle = 'rgba(232, 198, 112, 0.55)';
+    ctx.fillRect(bx, y + h - bh + 1 + (col % 3), bw, 1);
+    if (col % 5 === 0) {
+      ctx.fillStyle = 'rgba(255, 244, 210, 0.22)';
+      ctx.fillRect(bx, y + h - bh, 1, bh);
+    }
+    bx += bw + 1;
+    col++;
+  }
+}
+
+function drawCabinBookshelfBay(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  seed: number
+): void {
+  ctx.fillStyle = '#1a0e08';
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = '#3a2214';
+  ctx.fillRect(x + 2, y + 2, w - 4, h - 4);
+  ctx.fillStyle = '#5a3820';
+  ctx.fillRect(x + 2, y + 2, w - 4, 2);
+  const rows = 5;
+  const rowH = Math.floor((h - 10) / rows);
+  for (let r = 0; r < rows; r++) {
+    const sy = y + 6 + r * rowH;
+    ctx.fillStyle = '#100804';
+    ctx.fillRect(x + 4, sy, w - 8, rowH - 4);
+    drawCabinBookRow(ctx, x + 5, sy + 1, w - 10, rowH - 7, seed + r * 17);
+    ctx.fillStyle = '#6a4428';
+    ctx.fillRect(x + 3, sy + rowH - 4, w - 6, 3);
+    ctx.fillStyle = '#8a5c34';
+    ctx.fillRect(x + 3, sy + rowH - 4, w - 6, 1);
+  }
+  ctx.fillStyle = '#24140c';
+  ctx.fillRect(x, y, 3, h);
+  ctx.fillRect(x + w - 3, y, 3, h);
+  ctx.fillStyle = '#7a5230';
+  ctx.fillRect(x + 1, y, 1, h);
+  ctx.fillRect(x + w - 2, y, 1, h);
+}
+
+function drawCabinColumn(ctx: CanvasRenderingContext2D, x: number, y: number, h: number): void {
+  ctx.fillStyle = '#140c08';
+  ctx.fillRect(x, y, 16, h);
+  ctx.fillStyle = '#3a2416';
+  ctx.fillRect(x + 2, y, 12, h);
+  ctx.fillStyle = '#6a462a';
+  ctx.fillRect(x + 2, y, 3, h);
+  ctx.fillStyle = '#24140c';
+  for (let vy = y + 8; vy < y + h - 6; vy += 18) ctx.fillRect(x + 5, vy, 7, 2);
+  ctx.fillStyle = '#8a6240';
+  ctx.fillRect(x + 1, y, 14, 4);
+  ctx.fillRect(x + 1, y + h - 5, 14, 5);
+}
+
+function drawCabinArchNiche(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  kind: 'moon' | 'sun'
+): void {
+  ctx.fillStyle = '#1a0e08';
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = '#4a301c';
+  ctx.fillRect(x + 3, y + 3, w - 6, h - 6);
+  ctx.fillStyle = '#120a06';
+  ctx.beginPath();
+  ctx.moveTo(x + 8, y + h - 8);
+  ctx.quadraticCurveTo(x + w / 2, y + 4, x + w - 8, y + h - 8);
+  ctx.lineTo(x + w - 8, y + h - 4);
+  ctx.lineTo(x + 8, y + h - 4);
+  ctx.closePath();
+  ctx.fill();
+  if (kind === 'moon') {
+    const sky = ctx.createLinearGradient(0, y + 8, 0, y + h - 10);
+    sky.addColorStop(0, '#1a2748');
+    sky.addColorStop(1, '#3a2a48');
+    ctx.fillStyle = sky;
+  } else {
+    const sky = ctx.createLinearGradient(0, y + 8, 0, y + h - 10);
+    sky.addColorStop(0, '#c47a38');
+    sky.addColorStop(1, '#e8b868');
+    ctx.fillStyle = sky;
+  }
+  ctx.fillRect(x + 10, y + 14, w - 20, h - 28);
+  ctx.fillStyle = '#5a3820';
+  ctx.fillRect(x + 6, y + h - 12, w - 12, 6);
+  ctx.fillStyle = '#8a5c34';
+  ctx.fillRect(x + 6, y + h - 12, w - 12, 2);
+  ctx.fillStyle = '#d8c090';
+  ctx.fillRect(x + 16, y + h - 22, w - 32, 8);
+  ctx.fillStyle = '#2a1810';
+  ctx.fillRect(x + 18, y + h - 20, w - 36, 5);
+  if (kind === 'moon') {
+    ctx.fillStyle = '#e8e0c8';
+    ctx.beginPath();
+    ctx.arc(x + w / 2 + 8, y + 26, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#1a2748';
+    ctx.beginPath();
+    ctx.arc(x + w / 2 + 12, y + 24, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(240, 220, 160, 0.45)';
+    ctx.fillRect(x + 16, y + 22, 2, 2);
+    ctx.fillRect(x + 28, y + 30, 1, 1);
+    ctx.fillRect(x + 22, y + 18, 1, 1);
+  } else {
+    ctx.fillStyle = '#f4d878';
+    ctx.beginPath();
+    ctx.arc(x + w / 2, y + 26, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 236, 180, 0.7)';
+    ctx.beginPath();
+    ctx.arc(x + w / 2, y + 26, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/** Sala de la cabaña: biblioteca cálida, parquet y luz de tarde. */
 function drawCabinShell(ctx: CanvasRenderingContext2D, elapsed: number, reducedMotion: boolean): void {
   const W = ISLA_NATAL_CABIN.roomW;
   const H = ISLA_NATAL_CABIN.roomH;
   const wallH = 132;
 
-  // Suelo de tablones anchos.
-  ctx.fillStyle = '#5b3a22';
-  ctx.fillRect(0, wallH, W, H - wallH);
-  for (let y = wallH; y < H; y += 14) {
-    ctx.fillStyle = 'rgba(46, 27, 14, 0.55)';
-    ctx.fillRect(0, y, W, 1);
-    ctx.fillStyle = 'rgba(122, 84, 50, 0.55)';
-    ctx.fillRect(0, y + 1, W, 1);
-    const seam = (Math.floor(y / 14) % 2 === 0 ? 96 : 188) + (y % 3) * 23;
-    ctx.fillStyle = 'rgba(40, 24, 12, 0.5)';
-    ctx.fillRect(seam % W, y, 1, 13);
-    for (let x = 24; x < W; x += 58) {
-      const k = hash2(x + y, 17);
-      if (k < 0.7) continue;
-      ctx.fillStyle = 'rgba(48, 28, 13, 0.5)';
-      ctx.fillRect(x, y + 4, 3, 2);
+  // Marco de caoba de la sala.
+  ctx.fillStyle = '#1a0e08';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#4a2c18';
+  ctx.fillRect(6, 6, W - 12, H - 12);
+  ctx.fillStyle = '#2a1810';
+  ctx.fillRect(10, 10, W - 20, H - 20);
+
+  // Parquet de roble con vetas y juntas.
+  ctx.fillStyle = '#5a3820';
+  ctx.fillRect(10, wallH, W - 20, H - wallH - 10);
+  const plankH = 12;
+  for (let y = wallH; y < H - 10; y += plankH) {
+    const row = Math.floor((y - wallH) / plankH);
+    const offset = row % 2 === 0 ? 0 : 16;
+    ctx.fillStyle = row % 2 === 0 ? '#6a4428' : '#624022';
+    ctx.fillRect(10, y, W - 20, plankH);
+    ctx.fillStyle = 'rgba(255, 214, 160, 0.08)';
+    ctx.fillRect(10, y, W - 20, 1);
+    ctx.fillStyle = 'rgba(20, 10, 4, 0.35)';
+    ctx.fillRect(10, y + plankH - 1, W - 20, 1);
+    for (let x = 18 + offset; x < W - 16; x += 48) {
+      ctx.fillStyle = 'rgba(24, 12, 6, 0.4)';
+      ctx.fillRect(x, y, 1, plankH);
+      if (hash2(x, y) > 0.72) {
+        ctx.fillStyle = 'rgba(32, 16, 8, 0.4)';
+        ctx.fillRect(x + 10, y + 4, 3, 2);
+      }
     }
   }
+  const floorSheen = ctx.createRadialGradient(W * 0.5, 210, 12, W * 0.5, 210, 180);
+  floorSheen.addColorStop(0, 'rgba(255, 214, 150, 0.07)');
+  floorSheen.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = floorSheen;
+  ctx.fillRect(10, wallH, W - 20, H - wallH - 10);
 
-  // Pared del fondo con tablas verticales.
+  // Pared de biblioteca: tres bahías de estantes, columnas y nichos.
   const wallGrad = ctx.createLinearGradient(0, 0, 0, wallH);
-  wallGrad.addColorStop(0, '#432b1a');
-  wallGrad.addColorStop(0.62, '#372216');
-  wallGrad.addColorStop(1, '#2a1a10');
+  wallGrad.addColorStop(0, '#2c1a10');
+  wallGrad.addColorStop(0.7, '#23140c');
+  wallGrad.addColorStop(1, '#1a0e08');
   ctx.fillStyle = wallGrad;
-  ctx.fillRect(0, 0, W, wallH);
-  for (let x = 18; x < W; x += 26) {
-    ctx.fillStyle = 'rgba(22, 12, 6, 0.45)';
-    ctx.fillRect(x, 0, 1, wallH);
-    ctx.fillStyle = 'rgba(146, 100, 58, 0.16)';
-    ctx.fillRect(x + 1, 0, 1, wallH);
-    const knot = hash2(x, 5);
-    if (knot > 0.6) {
-      ctx.fillStyle = 'rgba(26, 14, 7, 0.5)';
-      ctx.fillRect(x + 8, 34 + Math.floor(knot * 60), 3, 2);
-    }
+  ctx.fillRect(10, 10, W - 20, wallH - 10);
+  for (let x = 18; x < W - 16; x += 22) {
+    ctx.fillStyle = 'rgba(255, 220, 170, 0.04)';
+    ctx.fillRect(x, 12, 10, wallH - 22);
   }
 
-  // Viga superior y zócalo.
-  ctx.fillStyle = '#24150c';
-  ctx.fillRect(0, 0, W, 9);
-  ctx.fillStyle = '#54351f';
-  ctx.fillRect(0, 9, W, 3);
-  for (let x = 10; x < W; x += 34) {
-    ctx.fillStyle = 'rgba(20, 11, 5, 0.55)';
-    ctx.fillRect(x, 0, 3, 9);
-  }
-  ctx.fillStyle = '#24150c';
-  ctx.fillRect(0, wallH - 7, W, 7);
-  ctx.fillStyle = '#5d3d24';
-  ctx.fillRect(0, wallH - 7, W, 2);
-  ctx.fillStyle = 'rgba(16, 9, 4, 0.5)';
-  ctx.fillRect(0, wallH - 1, W, 1);
+  drawCabinBookshelfBay(ctx, 12, 12, 76, 78, 3);
+  drawCabinBookshelfBay(ctx, 186, 12, 70, 54, 11);
+  drawCabinBookshelfBay(ctx, 328, 12, 72, 54, 19);
+  drawCabinBookshelfBay(ctx, 404, 12, 64, 48, 29);
+  drawCabinColumn(ctx, 154, 10, wallH - 10);
+  drawCabinColumn(ctx, 310, 10, wallH - 10);
 
-  // Ventana al atardecer con cortinas y jardinera.
+  drawCabinArchNiche(ctx, 186, 68, 70, 56, 'moon');
+  drawCabinArchNiche(ctx, 328, 68, 72, 56, 'sun');
+
+  // Viga superior, zócalo y moldura.
+  ctx.fillStyle = '#140c08';
+  ctx.fillRect(8, 8, W - 16, 10);
+  ctx.fillStyle = '#5a3820';
+  ctx.fillRect(8, 8, W - 16, 3);
+  ctx.fillStyle = '#8a5c34';
+  ctx.fillRect(8, 8, W - 16, 1);
+  for (let x = 20; x < W - 16; x += 36) {
+    ctx.fillStyle = 'rgba(16, 8, 4, 0.55)';
+    ctx.fillRect(x, 8, 4, 10);
+  }
+  ctx.fillStyle = '#1a0e08';
+  ctx.fillRect(10, wallH - 10, W - 20, 10);
+  ctx.fillStyle = '#6a4428';
+  ctx.fillRect(10, wallH - 10, W - 20, 3);
+  ctx.fillStyle = '#8a5c34';
+  ctx.fillRect(10, wallH - 10, W - 20, 1);
+  ctx.fillStyle = 'rgba(8, 4, 2, 0.45)';
+  ctx.fillRect(10, wallH, W - 20, 10);
+
+  // Ventana al atardecer con cortinas de terciopelo y jardinera.
   const wx = 94;
   const wy = 26;
   const ww = 84;
   const wh = 60;
-  ctx.fillStyle = '#24140a';
-  ctx.fillRect(wx - 5, wy - 5, ww + 10, wh + 10);
+  ctx.fillStyle = '#140c08';
+  ctx.fillRect(wx - 8, wy - 8, ww + 16, wh + 16);
+  ctx.fillStyle = '#5a3820';
+  ctx.fillRect(wx - 6, wy - 6, ww + 12, wh + 12);
+  ctx.fillStyle = '#c9a44a';
+  ctx.fillRect(wx - 4, wy - 4, ww + 8, 2);
+  ctx.fillRect(wx - 4, wy + wh + 2, ww + 8, 2);
   const sky = ctx.createLinearGradient(0, wy, 0, wy + wh);
   sky.addColorStop(0, '#6f87a8');
   sky.addColorStop(0.55, '#e8a86a');
@@ -3577,30 +4031,23 @@ function drawCabinShell(ctx: CanvasRenderingContext2D, elapsed: number, reducedM
   ctx.fillRect(wx + 52, wy + wh - 26, 12, 4);
   ctx.fillStyle = 'rgba(255, 220, 150, 0.5)';
   ctx.fillRect(wx + 50, wy + wh - 22, 16, 8);
-  // Silueta de la arboleda lejana.
   ctx.fillStyle = 'rgba(38, 52, 46, 0.7)';
   ctx.fillRect(wx + 6, wy + wh - 22, 16, 3);
   ctx.fillRect(wx + 12, wy + wh - 27, 3, 6);
   ctx.fillRect(wx + 20, wy + wh - 25, 2, 4);
-  // Reflejo y marcos.
   ctx.fillStyle = 'rgba(255, 245, 214, 0.28)';
   ctx.fillRect(wx + 2, wy + 2, 20, 1);
   ctx.fillStyle = '#3b2415';
   ctx.fillRect(wx + ww / 2 - 1, wy, 2, wh);
   ctx.fillRect(wx, wy + wh / 2 - 1, ww, 2);
-  // Cortinas de lino.
-  ctx.fillStyle = '#a65c3a';
-  ctx.fillRect(wx - 11, wy - 8, 9, wh + 18);
-  ctx.fillRect(wx + ww + 2, wy - 8, 9, wh + 18);
-  ctx.fillStyle = '#c07a4e';
-  ctx.fillRect(wx - 9, wy - 6, 3, wh + 14);
-  ctx.fillRect(wx + ww + 4, wy - 6, 3, wh + 14);
-  ctx.fillStyle = 'rgba(70, 32, 16, 0.55)';
-  for (let y = wy - 2; y < wy + wh + 8; y += 7) {
-    ctx.fillRect(wx - 7, y, 2, 3);
-    ctx.fillRect(wx + ww + 6, y, 2, 3);
-  }
-  // Jardinera de la ventana.
+  ctx.fillStyle = '#7a2430';
+  ctx.fillRect(wx - 14, wy - 10, 12, wh + 24);
+  ctx.fillRect(wx + ww + 2, wy - 10, 12, wh + 24);
+  ctx.fillStyle = '#a03844';
+  ctx.fillRect(wx - 12, wy - 8, 4, wh + 20);
+  ctx.fillRect(wx + ww + 4, wy - 8, 4, wh + 20);
+  ctx.fillStyle = '#c9a44a';
+  ctx.fillRect(wx - 14, wy - 12, ww + 28, 5);
   ctx.fillStyle = '#4d3320';
   ctx.fillRect(wx - 8, wy + wh + 2, ww + 16, 8);
   ctx.fillStyle = '#77502f';
@@ -3613,7 +4060,7 @@ function drawCabinShell(ctx: CanvasRenderingContext2D, elapsed: number, reducedM
     ctx.fillRect(wx - 6 + i * 12, wy + wh - 7, 5, 3);
   }
 
-  // Haz de luz que cae de la ventana sobre el suelo.
+  // Haz de luz de la ventana.
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   const beam = ctx.createLinearGradient(wx + 10, wy + wh, wx + 40, H);
@@ -3634,11 +4081,35 @@ function drawCabinShell(ctx: CanvasRenderingContext2D, elapsed: number, reducedM
   ctx.fillRect(wx - 70, 108, 210, 190);
   ctx.restore();
 
+  // Chimenea de piedra bajo el nicho de la luna.
+  ctx.fillStyle = '#2a1c14';
+  ctx.fillRect(198, 92, 48, 40);
+  ctx.fillStyle = '#6a4a32';
+  ctx.fillRect(200, 94, 44, 36);
+  ctx.fillStyle = '#120a06';
+  ctx.fillRect(208, 104, 28, 24);
+  const flicker = reducedMotion ? 0.9 : 0.82 + Math.sin(elapsed * 4.7) * 0.1 + Math.sin(elapsed * 11.3) * 0.04;
+  ctx.fillStyle = `rgba(255, 150, 60, ${flicker.toFixed(2)})`;
+  ctx.beginPath();
+  ctx.moveTo(212, 126);
+  ctx.lineTo(222, 108);
+  ctx.lineTo(232, 126);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#f4d060';
+  ctx.fillRect(218, 116, 4, 8);
+  ctx.fillStyle = '#3a2414';
+  ctx.fillRect(196, 90, 52, 6);
+  ctx.fillStyle = '#8a5c34';
+  ctx.fillRect(196, 90, 52, 2);
+
   // Retrato familiar y estante con frascos.
   ctx.fillStyle = '#2a180c';
   ctx.fillRect(256, 32, 50, 42);
-  ctx.fillStyle = '#6d4a2b';
+  ctx.fillStyle = '#c9a44a';
   ctx.fillRect(258, 34, 46, 38);
+  ctx.fillStyle = '#6d4a2b';
+  ctx.fillRect(260, 36, 42, 34);
   ctx.fillStyle = '#d9c39a';
   ctx.fillRect(262, 38, 38, 30);
   ctx.fillStyle = 'rgba(96, 72, 46, 0.6)';
@@ -3679,7 +4150,6 @@ function drawCabinShell(ctx: CanvasRenderingContext2D, elapsed: number, reducedM
   ctx.lineTo(236, 34);
   ctx.closePath();
   ctx.fill();
-  const flicker = reducedMotion ? 0.9 : 0.82 + Math.sin(elapsed * 4.7) * 0.1 + Math.sin(elapsed * 11.3) * 0.04;
   ctx.fillStyle = `rgba(255, 214, 138, ${flicker.toFixed(2)})`;
   ctx.fillRect(237, 34, 6, 4);
   ctx.save();
@@ -3691,28 +4161,60 @@ function drawCabinShell(ctx: CanvasRenderingContext2D, elapsed: number, reducedM
   ctx.fillRect(144, -60, 192, 192);
   ctx.restore();
 
-  // Alfombra tejida.
-  ctx.fillStyle = '#6f3b2b';
+  // Alfombra central de lana bordada (granate y oro).
+  ctx.fillStyle = 'rgba(16, 8, 4, 0.28)';
+  ctx.fillRect(150, 196, 176, 80);
+  ctx.fillStyle = '#6a2428';
   ctx.fillRect(154, 198, 168, 76);
-  ctx.fillStyle = '#d9be8c';
+  ctx.fillStyle = '#c9a44a';
   ctx.fillRect(154, 198, 168, 3);
   ctx.fillRect(154, 271, 168, 3);
   ctx.fillRect(154, 198, 3, 76);
   ctx.fillRect(319, 198, 3, 76);
-  for (let i = 0; i < 4; i++) {
-    ctx.fillStyle = i % 2 === 0 ? '#a5653c' : '#8b4d31';
-    ctx.fillRect(164 + i * 40, 208, 26, 56);
-  }
-  ctx.fillStyle = 'rgba(246, 226, 186, 0.5)';
-  for (let i = 0; i < 4; i++) {
-    const dx = 177 + i * 40;
-    ctx.fillRect(dx, 220, 3, 3);
-    ctx.fillRect(dx - 4, 230, 11, 2);
-    ctx.fillRect(dx + 1, 238, 3, 3);
-    ctx.fillRect(dx - 4, 248, 11, 2);
+  ctx.fillStyle = '#8a3430';
+  ctx.fillRect(164, 208, 148, 56);
+  ctx.fillStyle = '#d4b06a';
+  ctx.strokeStyle = '#d4b06a';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(168, 212, 140, 48);
+  ctx.strokeRect(176, 220, 124, 32);
+  ctx.fillStyle = '#e8d090';
+  ctx.beginPath();
+  ctx.moveTo(238, 226);
+  ctx.lineTo(250, 236);
+  ctx.lineTo(238, 246);
+  ctx.lineTo(226, 236);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#6a2428';
+  ctx.beginPath();
+  ctx.arc(238, 236, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#d4b06a';
+  for (let fy = 202; fy < 270; fy += 4) {
+    ctx.fillRect(150, fy, 4, 2);
+    ctx.fillRect(322, fy, 4, 2);
   }
 
-  // Puerta al sur, con umbral cálido.
+  // Alfombra ovalada a la derecha.
+  ctx.fillStyle = 'rgba(16, 8, 4, 0.22)';
+  ctx.beginPath();
+  ctx.ellipse(392, 236, 38, 16, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#7a5a28';
+  ctx.beginPath();
+  ctx.ellipse(390, 234, 36, 14, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#c9a44a';
+  ctx.beginPath();
+  ctx.ellipse(390, 234, 28, 9, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#5a3a18';
+  ctx.beginPath();
+  ctx.ellipse(390, 234, 16, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Puerta al sur, con umbral cálido y felpudo.
   const dx0 = 206;
   const dy0 = 258;
   ctx.fillStyle = '#1c0f07';
@@ -3731,21 +4233,20 @@ function drawCabinShell(ctx: CanvasRenderingContext2D, elapsed: number, reducedM
   ctx.fillRect(dx0 + 48, dy0 + 22, 3, 4);
   ctx.fillStyle = 'rgba(255, 236, 160, 0.7)';
   ctx.fillRect(dx0 + 48, dy0 + 22, 1, 1);
-  // Umbral de piedra y felpudo.
   ctx.fillStyle = '#8d8779';
   ctx.fillRect(dx0 - 8, 296, 78, 4);
   ctx.fillStyle = 'rgba(255, 244, 220, 0.3)';
   ctx.fillRect(dx0 - 8, 296, 76, 1);
-  ctx.fillStyle = '#7a5a38';
+  ctx.fillStyle = '#2a5a38';
   ctx.fillRect(dx0 + 4, 284, 54, 10);
-  ctx.fillStyle = '#96703f';
+  ctx.fillStyle = '#3a7a4c';
   ctx.fillRect(dx0 + 5, 285, 52, 2);
-  ctx.fillStyle = 'rgba(52, 33, 19, 0.55)';
+  ctx.fillStyle = 'rgba(20, 40, 24, 0.45)';
   ctx.fillRect(dx0 + 5, 289, 52, 1);
 }
 
 function drawCabinFurniture(ctx: CanvasRenderingContext2D, elapsed: number, reducedMotion: boolean): void {
-  // Cama de madera junto a la pared oeste.
+  // Cama de caoba con edredón y almohadas, junto a la pared oeste.
   const bx = 30;
   const by = 150;
   const bw = 112;
@@ -3754,40 +4255,55 @@ function drawCabinFurniture(ctx: CanvasRenderingContext2D, elapsed: number, redu
   ctx.beginPath();
   ctx.ellipse(bx + bw * 0.55, by + bh - 2, bw * 0.62, 9, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = '#3d2615';
-  ctx.fillRect(bx, by, 9, bh);
-  ctx.fillRect(bx + 2, by + bh - 8, bw - 2, 8);
-  ctx.fillStyle = '#6b482a';
-  ctx.fillRect(bx + 1, by + 2, 3, bh - 12);
-  ctx.fillRect(bx + 8, by + 18, bw - 12, bh - 30);
-  ctx.fillStyle = '#dfd0ae';
-  ctx.fillRect(bx + 10, by + 20, bw - 16, bh - 36);
-  ctx.fillStyle = '#f2e9d2';
-  ctx.fillRect(bx + 12, by + 24, 28, 18);
-  ctx.fillStyle = 'rgba(180, 160, 122, 0.5)';
-  ctx.fillRect(bx + 12, by + 40, 28, 2);
-  // Edredón de retales.
-  ctx.fillStyle = '#4f7a54';
-  ctx.fillRect(bx + 40, by + 22, bw - 46, bh - 40);
-  ctx.fillStyle = '#63976a';
-  for (let y = by + 28; y < by + bh - 24; y += 14) {
-    ctx.fillRect(bx + 42, y, bw - 50, 4);
+  ctx.fillStyle = '#2a180c';
+  ctx.fillRect(bx, by, 12, bh);
+  ctx.fillRect(bx + 2, by + bh - 10, bw - 2, 10);
+  ctx.fillStyle = '#6b4226';
+  ctx.fillRect(bx + 2, by + 2, 8, bh - 14);
+  ctx.fillStyle = '#c9a44a';
+  ctx.fillRect(bx + 3, by + 8, 6, 2);
+  ctx.fillRect(bx + 3, by + 28, 6, 2);
+  ctx.fillStyle = '#5c381f';
+  ctx.fillRect(bx + 10, by + 18, bw - 14, bh - 32);
+  ctx.fillStyle = '#efe4c8';
+  ctx.fillRect(bx + 12, by + 20, bw - 18, bh - 38);
+  ctx.fillStyle = '#f8f1dc';
+  ctx.fillRect(bx + 14, by + 22, 32, 20);
+  ctx.fillRect(bx + 18, by + 44, 28, 16);
+  ctx.fillStyle = 'rgba(180, 160, 122, 0.45)';
+  ctx.fillRect(bx + 14, by + 40, 32, 2);
+  ctx.fillStyle = '#3f6a4c';
+  ctx.fillRect(bx + 46, by + 22, bw - 52, bh - 42);
+  ctx.fillStyle = '#528a62';
+  for (let y = by + 28; y < by + bh - 28; y += 12) {
+    ctx.fillRect(bx + 48, y, bw - 56, 3);
   }
   ctx.fillStyle = '#c96f4a';
-  ctx.fillRect(bx + 56, by + 48, 22, 20);
+  ctx.fillRect(bx + 62, by + 50, 24, 22);
   ctx.fillStyle = '#e0a15a';
-  ctx.fillRect(bx + 60, by + 52, 14, 12);
-  ctx.fillStyle = 'rgba(30, 18, 10, 0.35)';
-  ctx.fillRect(bx + 40, by + bh - 24, bw - 46, 2);
-  // Almohada y cabecero.
-  ctx.fillStyle = '#5c3a21';
-  ctx.fillRect(bx + 6, by + 14, bw - 10, 3);
-  ctx.fillStyle = '#8a6238';
-  ctx.fillRect(bx + 6, by + 17, bw - 12, 2);
+  ctx.fillRect(bx + 66, by + 54, 16, 14);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(bx + 46, by + 22, bw - 52, 4);
   ctx.fillStyle = '#3a2414';
-  for (let i = 0; i < 5; i++) ctx.fillRect(bx + 20 + i * 18, by + 4, 2, 12);
+  ctx.fillRect(bx + 8, by + 12, bw - 12, 6);
+  ctx.fillStyle = '#8a6238';
+  ctx.fillRect(bx + 10, by + 14, bw - 16, 2);
+  ctx.fillStyle = '#24140c';
+  for (let i = 0; i < 5; i++) ctx.fillRect(bx + 22 + i * 18, by + 2, 3, 14);
 
-  // Mesa camilla con mantel, radio y café.
+  // Mesita con lámpara de aceite al pie de la cama.
+  ctx.fillStyle = '#3a2414';
+  ctx.fillRect(26, 248, 22, 16);
+  ctx.fillStyle = '#6b4428';
+  ctx.fillRect(27, 249, 20, 4);
+  ctx.fillStyle = '#c9a44a';
+  ctx.fillRect(34, 253, 4, 2);
+  ctx.fillStyle = '#8a5c30';
+  ctx.fillRect(32, 242, 8, 8);
+  ctx.fillStyle = '#f4d878';
+  ctx.fillRect(34, 238, 4, 5);
+
+  // Mesa de lectura con mantel, radio, libros y café.
   const tx = 318;
   const ty = 148;
   const tw = 86;
@@ -3803,13 +4319,17 @@ function drawCabinFurniture(ctx: CanvasRenderingContext2D, elapsed: number, redu
   ctx.fillRect(tx, ty, tw, 12);
   ctx.fillStyle = '#9a6f45';
   ctx.fillRect(tx, ty, tw, 2);
-  // Mantel de cuadros.
   ctx.fillStyle = '#e7d4ae';
-  ctx.fillRect(tx + 4, ty + 10, tw - 8, 20);
+  ctx.fillRect(tx + 4, ty + 10, tw - 8, 22);
   ctx.fillStyle = 'rgba(178, 84, 64, 0.65)';
-  for (let x = tx + 10; x < tx + tw - 8; x += 12) ctx.fillRect(x, ty + 10, 4, 20);
+  for (let x = tx + 10; x < tx + tw - 8; x += 12) ctx.fillRect(x, ty + 10, 4, 22);
   ctx.fillRect(tx + 4, ty + 18, tw - 8, 3);
-  // Cafetera esmaltada.
+  ctx.fillStyle = '#3a2468';
+  ctx.fillRect(tx + 8, ty + 12, 10, 8);
+  ctx.fillStyle = '#1d3d78';
+  ctx.fillRect(tx + 11, ty + 10, 9, 8);
+  ctx.fillStyle = '#e8d090';
+  ctx.fillRect(tx + 13, ty + 11, 5, 6);
   ctx.fillStyle = '#3f5f6b';
   ctx.fillRect(tx + 12, ty - 2, 12, 10);
   ctx.fillStyle = '#5c8491';
@@ -3818,7 +4338,6 @@ function drawCabinFurniture(ctx: CanvasRenderingContext2D, elapsed: number, redu
   ctx.fillRect(tx + 24, ty + 1, 3, 5);
   ctx.fillStyle = '#c8dbe0';
   ctx.fillRect(tx + 15, ty + 7, 6, 2);
-  // Radio de transistores.
   ctx.fillStyle = '#3a2414';
   ctx.fillRect(tx + 34, ty - 4, 22, 14);
   ctx.fillStyle = '#a8732f';
@@ -3831,14 +4350,12 @@ function drawCabinFurniture(ctx: CanvasRenderingContext2D, elapsed: number, redu
   ctx.fillRect(tx + 50, ty + 4, 3, 3);
   ctx.fillStyle = '#8e8a80';
   ctx.fillRect(tx + 55, ty - 12, 1, 9);
-  // Taza y plato.
   ctx.fillStyle = '#e8e2d2';
   ctx.fillRect(tx + 62, ty + 2, 8, 5);
   ctx.fillStyle = '#b7ad96';
   ctx.fillRect(tx + 63, ty + 7, 9, 2);
   ctx.fillStyle = '#e8e2d2';
   ctx.fillRect(tx + 69, ty + 3, 2, 2);
-  // Silla arrimada.
   ctx.fillStyle = '#5c3a21';
   ctx.fillRect(tx + 26, ty + 44, 24, 4);
   ctx.fillRect(tx + 26, ty + 48, 3, 16);
@@ -3846,14 +4363,13 @@ function drawCabinFurniture(ctx: CanvasRenderingContext2D, elapsed: number, redu
   ctx.fillStyle = '#7d5530';
   ctx.fillRect(tx + 26, ty + 30, 3, 16);
   ctx.fillRect(tx + 27, ty + 32, 22, 3);
+  ctx.fillStyle = '#7a2430';
+  ctx.fillRect(tx + 28, ty + 34, 20, 8);
 
-  // Guitarra acústica colgada sobre la cama.
   drawCabinGuitar(ctx);
-
-  // Teclado musical sobre su banco, bajo el retrato familiar.
   drawCabinKeyboard(ctx);
 
-  // Cocina económica contra la pared este.
+  // Cocina económica / estufa de hierro contra la pared este.
   const kx = 404;
   const ky = 112;
   const kw = 64;
@@ -3870,7 +4386,6 @@ function drawCabinFurniture(ctx: CanvasRenderingContext2D, elapsed: number, redu
   ctx.fillRect(kx - 2, ky + 4, kw + 4, 2);
   ctx.fillStyle = '#2f2014';
   ctx.fillRect(kx + 4, ky + 16, kw - 8, 34);
-  // Hornillas y caldero.
   ctx.fillStyle = '#5a5148';
   ctx.fillRect(kx + 8, ky + 10, 20, 4);
   ctx.fillRect(kx + 36, ky + 10, 20, 4);
@@ -3885,7 +4400,6 @@ function drawCabinFurniture(ctx: CanvasRenderingContext2D, elapsed: number, redu
   ctx.fillRect(kx + 8, ky - 6, 20, 2);
   ctx.fillStyle = '#2a221d';
   ctx.fillRect(kx + 4, ky - 8, 4, 4);
-  // Fuego bajo el caldero.
   const ember = reducedMotion ? 0.7 : 0.55 + Math.sin(elapsed * 6.1) * 0.2;
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
@@ -3897,7 +4411,6 @@ function drawCabinFurniture(ctx: CanvasRenderingContext2D, elapsed: number, redu
   ctx.restore();
   ctx.fillStyle = `rgba(255, 176, 92, ${ember.toFixed(2)})`;
   ctx.fillRect(kx + 12, ky + 4, 14, 3);
-  // Puertas del armario y tiradores.
   ctx.fillStyle = '#4f3722';
   ctx.fillRect(kx + 6, ky + 56, 22, 26);
   ctx.fillRect(kx + 34, ky + 56, 22, 26);
@@ -3907,7 +4420,6 @@ function drawCabinFurniture(ctx: CanvasRenderingContext2D, elapsed: number, redu
   ctx.fillStyle = '#d9a521';
   ctx.fillRect(kx + 24, ky + 68, 2, 3);
   ctx.fillRect(kx + 36, ky + 68, 2, 3);
-  // Vapor de la tetera.
   if (!reducedMotion) {
     for (let i = 0; i < 3; i++) {
       const st = (elapsed * 0.42 + i / 3) % 1;
@@ -3915,7 +4427,6 @@ function drawCabinFurniture(ctx: CanvasRenderingContext2D, elapsed: number, redu
       ctx.fillRect(Math.round(kx + 16 + Math.sin(st * 6 + i) * 5), Math.round(ky - 14 - st * 26), 2 + Math.round(st * 3), 2);
     }
   }
-  // Estante con cacharros de cobre.
   ctx.fillStyle = '#3a2414';
   ctx.fillRect(kx - 2, 74, kw + 6, 3);
   ctx.fillStyle = '#6b4a2a';
@@ -3929,6 +4440,31 @@ function drawCabinFurniture(ctx: CanvasRenderingContext2D, elapsed: number, redu
     ctx.fillStyle = '#3a2414';
     ctx.fillRect(px + 5, 58, 2, 4);
   }
+
+  // Planta de interior en la esquina sureste, sobre la cocina.
+  ctx.fillStyle = '#7c2d12';
+  ctx.fillRect(448, 198, 16, 12);
+  ctx.fillStyle = '#c2410c';
+  ctx.fillRect(447, 196, 18, 4);
+  ctx.fillStyle = '#14532d';
+  ctx.beginPath();
+  ctx.arc(456, 188, 10, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#22c55e';
+  ctx.beginPath();
+  ctx.arc(452, 184, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(460, 186, 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Banco de lectura arrimado al borde sur de la mesa.
+  ctx.fillStyle = '#3a2414';
+  ctx.fillRect(338, 200, 24, 10);
+  ctx.fillStyle = '#6b4428';
+  ctx.fillRect(339, 201, 22, 3);
+  ctx.fillStyle = '#7a2430';
+  ctx.fillRect(340, 204, 20, 5);
 }
 
 /** Guitarra eléctrica roja de la familia, colgada de un clavo sobre la cama. */
@@ -4357,7 +4893,7 @@ export function renderIslaNatalFrame(params: IslaNatalRenderParams): void {
   ctx.save();
   ctx.translate(-camX, -camY);
 
-  drawOcean(ctx, camX, camY, vw, vh, elapsed, animFrame4, charge);
+  drawOcean(ctx, camX, camY, vw, vh, elapsed, animFrame4, charge, reducedMotion);
   drawLandmass(ctx, camX, camY, vw, vh, elapsed);
 
   // Muelle del Puerto Norte: se dibuja como parte del suelo para que el
