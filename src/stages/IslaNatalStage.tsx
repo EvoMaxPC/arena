@@ -233,9 +233,10 @@ export function IslaNatalStage({
       ? 'powered'
       : 'dusty';
   const paddleOnGround = pongWon && !paddleCarried;
-  // El puerto norte sólo abre el carril de surf cuando Pong está ganado y la
-  // Barra de Pong está en manos del jugador.
-  const departureReady = pongWon && paddleCarried;
+  const hasBackpack = flagSet.has(NATAL_FLAGS.backpack);
+  // El puerto norte sólo abre el carril de surf cuando Pong está ganado, la
+  // Barra de Pong está en manos del jugador y la mochila ha sido recogida.
+  const departureReady = pongWon && paddleCarried && hasBackpack;
   const startAtNorthPort = pongWon && paddleCarried;
 
   // Partida nueva: Pixel ya vive en la cabaña. La intro (radio, temblor y
@@ -607,11 +608,25 @@ export function IslaNatalStage({
   );
 
   const interactDeparture = useCallback(() => {
-    if (!stageRef.current.departureReady) {
+    const flags = stageRef.current.flagSet;
+    if (!flags.has(NATAL_FLAGS.pongWon) || !flags.has(NATAL_FLAGS.paddle)) {
       setDialogModal({
         category: 'PUERTO NORTE · EL CARRIL DE LUZ',
         tone: 'wood',
         dialog: DEPARTURE_BLOCKED_DIALOG,
+      });
+      return;
+    }
+    if (!flags.has(NATAL_FLAGS.backpack)) {
+      setDialogModal({
+        category: 'PRADERA DE CASA · PREPARATIVOS',
+        tone: 'wood',
+        dialog: {
+          title: 'Sin mochila',
+          paragraphs: [
+            'Debería llevar mi mochila con mis objetos. ¡Se encuentra en mi casa, la buscaré!',
+          ],
+        },
       });
       return;
     }
@@ -802,6 +817,25 @@ export function IslaNatalStage({
       retroAudio.portalVictory();
       window.dispatchEvent(new CustomEvent('pixelverse-shake'));
       showToast(`Victoria · ${arcadePoints} PTS en ${rallies} intercambios`);
+      const hasBackpackNow = flagSet.has(NATAL_FLAGS.backpack);
+      if (!hasBackpackNow) {
+        setDialogModal({
+          category: 'LA ARBOLEDA · SEÑAL ENTRANTE',
+          tone: 'arcane',
+          dialog: {
+            title: 'Señal en la pantalla',
+            paragraphs: [
+              'El marcador se queda en 3 y la máquina no vuelve al atractivo: la pantalla se llena de bandas que caen como lluvia.',
+              'Entre la estática se dibuja una silueta enorme —arcos, torres, un cielo roto— y una voz sin boca dice una sola palabra que no llegas a entender.',
+              'Después, silencio. Sobre el cristal queda escrita una dirección que no está en ningún mapa: la Isla del Origen.',
+              'Debería llevar mi mochila con mis objetos. ¡Se encuentra en mi casa, la buscaré!',
+            ],
+            hint: 'Algo se ha despertado muy lejos de aquí… y ha aprendido tu nombre.',
+          },
+          primary: { label: 'Salir a la arboleda', run: () => setDialogModal(null) },
+        });
+        return;
+      }
       setDialogModal({
         category: 'LA ARBOLEDA · SEÑAL ENTRANTE',
         tone: 'arcane',
@@ -809,7 +843,7 @@ export function IslaNatalStage({
         primary: { label: 'Salir a la arboleda', run: () => setDialogModal(null) },
       });
     },
-    [markFlag, showToast]
+    [markFlag, showToast, flagSet]
   );
 
   const handleChallengeQuit = useCallback(() => {
